@@ -1,0 +1,112 @@
+<UserControl x:Class="Moonlit.Views.ClockOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+
+    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <!-- Readability Dimming / Gradient Layer -->
+        <Border x:Name="DimmingLayer"
+                Background="Black"
+                Opacity="0.25"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch" />
+
+        <!-- Subtle Top & Bottom Cinematic Vignette -->
+        <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Opacity="0.45" IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                    <GradientStop Color="#CC000000" Offset="0.0" />
+                    <GradientStop Color="#00000000" Offset="0.25" />
+                    <GradientStop Color="#00000000" Offset="0.75" />
+                    <GradientStop Color="#E6000000" Offset="1.0" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <!-- Main Clock & Date Display Container -->
+        <Grid x:Name="ClockContainer"
+              Margin="60"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+            <StackPanel x:Name="ClockStackPanel" HorizontalAlignment="Center">
+                
+                <!-- Time Row (Hours, Minutes, Seconds, AM/PM) -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="ClockTimeText"
+                               Text="12:00"
+                               FontSize="92"
+                               FontWeight="Light"
+                               Foreground="#FFFFFF"
+                               FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
+                               TextAlignment="Center">
+                        <TextBlock.Effect>
+                            <DropShadowEffect BlurRadius="16" ShadowDepth="3" Direction="315" Color="#000000" Opacity="0.85" />
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <TextBlock x:Name="ClockSecondsText"
+                               Text=":00"
+                               FontSize="48"
+                               FontWeight="Normal"
+                               Foreground="#D0D6E2"
+                               FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
+                               VerticalAlignment="Bottom"
+                               Margin="2,0,0,16"
+                               Visibility="Collapsed">
+                        <TextBlock.Effect>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="315" Color="#000000" Opacity="0.8" />
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <TextBlock x:Name="ClockAmPmText"
+                               Text="AM"
+                               FontSize="26"
+                               FontWeight="SemiBold"
+                               Foreground="#8AB4FF"
+                               FontFamily="Segoe UI Variable, Segoe UI, sans-serif"
+                               VerticalAlignment="Bottom"
+                               Margin="8,0,0,22">
+                        <TextBlock.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="315" Color="#000000" Opacity="0.8" />
+                        </TextBlock.Effect>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Date Text -->
+                <TextBlock x:Name="ClockDateText"
+                           Text="Sunday, October 18"
+                           FontSize="24"
+                           FontWeight="Normal"
+                           Foreground="#E2E8F0"
+                           FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif"
+                           HorizontalAlignment="Center"
+                           Margin="0,4,0,0">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="315" Color="#000000" Opacity="0.8" />
+                    </TextBlock.Effect>
+                </TextBlock>
+
+            </StackPanel>
+        </Grid>
+
+        <!-- Bottom Dismiss / Sign-In Hint -->
+        <Border x:Name="DismissHintBorder"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,36">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="✦ " Foreground="#8AB4FF" FontSize="13" VerticalAlignment="Center" />
+                <TextBlock Text="Press any key or click to sign in"
+                           FontSize="14"
+                           FontWeight="Medium"
+                           Foreground="#CBD5E1"
+                           FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="#000000" Opacity="0.85" />
+                    </TextBlock.Effect>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</UserControl>

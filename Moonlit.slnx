@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Moonlit/Moonlit.csproj" />
+  </Folder>
+</Solution>
