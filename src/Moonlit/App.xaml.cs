@@ -20,6 +20,7 @@ public partial class App : Application
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     private static Mutex? _singleInstanceMutex;
+    private static bool _hasMutexOwnership;
     private static EventWaitHandle? _lockEventHandle;
     private static EventWaitHandle? _showWindowEventHandle;
     private static CancellationTokenSource? _cts;
@@ -84,6 +85,7 @@ public partial class App : Application
 
         // Prevent duplicate instances of Moonlit and activate existing running instance
         _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out bool isOnlyInstance);
+        _hasMutexOwnership = isOnlyInstance;
         if (!isOnlyInstance)
         {
             if (isLockMode)
@@ -285,9 +287,18 @@ public partial class App : Application
         }
         catch { }
 
+        if (_hasMutexOwnership)
+        {
+            try
+            {
+                _singleInstanceMutex?.ReleaseMutex();
+            }
+            catch { }
+            _hasMutexOwnership = false;
+        }
+
         try
         {
-            _singleInstanceMutex?.ReleaseMutex();
             _singleInstanceMutex?.Dispose();
             _singleInstanceMutex = null;
         }
@@ -319,7 +330,10 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         SettingsService.LogMessage($"Moonlit application exiting with code {e.ApplicationExitCode}.");
-        ExitApplication();
+        if (_hasMutexOwnership)
+        {
+            ExitApplication();
+        }
         base.OnExit(e);
     }
 }
