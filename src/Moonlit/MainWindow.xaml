@@ -440,6 +440,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
@@ -471,6 +472,16 @@
                         Style="{StaticResource PrimaryButtonStyle}"
                         Click="OnSaveSettingsClicked"
                         Padding="20,8" />
+
+                <!-- Exit Moonlit -->
+                <Button Grid.Column="4"
+                        x:Name="ExitAppButton"
+                        Content="Exit Moonlit"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Click="OnExitAppClicked"
+                        Margin="10,0,0,0"
+                        Foreground="{StaticResource ErrorBrush}"
+                        ToolTip="Completely terminates Moonlit, closes background services, and removes the tray icon." />
             </Grid>
         </Border>
 

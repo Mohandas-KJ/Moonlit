@@ -32,6 +32,15 @@ Moonlit brings a customizable, cinematic lock-screen experience to Windows. Insp
 - **Workstation Locking**: Directly triggers `LockWorkStation` so Windows presents its official authentication surface (Windows Hello, PIN, password).
 - **Session Lifecycle**: Subscribes to `SystemEvents.SessionSwitch` to automatically handle session locking and unlocking.
 
+### 🔔 System Tray & Seamless Activation
+- **Taskbar Notification Area Icon**: Moonlit maintains a resident icon in the Windows System Tray with instant access.
+- **Left-Click / Double-Click**: Instantly brings the Settings Dashboard to the front.
+- **Right-Click Context Menu**:
+  - `Open Settings Dashboard`
+  - `Lock PC with Moonlit (Win + L)`
+  - `Exit Moonlit` (cleanly and immediately terminates all background processes, hooks, and services).
+- **Single-Instance IPC Activation**: Attempting to launch Moonlit when it is already running automatically signals the running instance over IPC to restore and focus the dashboard—no duplicate errors or frozen instances.
+
 ### ⚙️ Preferences & Persistence
 - **Instant Test Actions**:
   - `Test Lock Experience`: Full-screen preview dismissed back to the desktop on keypress/click.
@@ -70,7 +79,8 @@ Moonlit/
 │       │   ├── StartupService.cs     # Windows sign-in startup registry integration
 │       │   ├── StatusService.cs      # Three-tier readiness evaluation (Green/Amber/Red)
 │       │   ├── LockSessionManager.cs # SessionSwitch events & window lifecycle coordination
-│       │   └── DiagnosticsService.cs # Screen metrics, OS build, and environment checks
+│       │   ├── DiagnosticsService.cs # Screen metrics, OS build, and environment checks
+│       │   └── TrayIconService.cs    # Native Windows System Tray icon & IPC coordination
 │       │
 │       ├── Integration/
 │       │   └── WindowsIntegration.cs # Native LockWorkStation and screen bounds interop
@@ -86,7 +96,7 @@ Moonlit/
 │           └── app-icon.ico          # Moonlit icon
 │
 └── tests/
-    └── Moonlit.Tests/                # 35 automated xUnit unit tests
+    └── Moonlit.Tests/                # 36 automated xUnit unit tests
 ```
 
 ---

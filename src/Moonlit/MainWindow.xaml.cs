@@ -591,20 +591,18 @@ public partial class MainWindow : Window
         _feedbackTimer.Start();
     }
 
+    private void OnExitAppClicked(object sender, RoutedEventArgs e)
+    {
+        App.ExitApplication();
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         _feedbackTimer.Stop();
         PreviewPlayer.Close();
 
-        // If Win+L or lock experience is active, remain running in background to catch lock hotkeys
-        if (_currentSettings.LockExperienceEnabled && _currentSettings.InterceptWinL)
-        {
-            _settingsService.LogMessage("Dashboard window closed. Moonlit remains active in background monitoring lock shortcuts.");
-        }
-        else
-        {
-            Application.Current.Shutdown();
-        }
+        _settingsService.LogMessage("Dashboard window closed. Moonlit remains active in background and accessible via system tray.");
+        App.TrayIconService?.ShowBalloon("Moonlit", "Moonlit is active in the background. Click the tray icon anytime to reopen settings.");
 
         base.OnClosed(e);
     }

@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Moonlit.Services;
 
@@ -12,16 +14,23 @@ public partial class App : Application
 {
     private const string SingleInstanceMutexName = @"Local\Moonlit_SingleInstance_Mutex";
     private const string LockEventName = @"Local\Moonlit_LockRequested_Event";
+    private const string ShowWindowEventName = @"Local\Moonlit_ShowWindow_Event";
 
-    private Mutex? _singleInstanceMutex;
-    private EventWaitHandle? _lockEventHandle;
-    private CancellationTokenSource? _cts;
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    private static Mutex? _singleInstanceMutex;
+    private static EventWaitHandle? _lockEventHandle;
+    private static EventWaitHandle? _showWindowEventHandle;
+    private static CancellationTokenSource? _cts;
 
     private static SettingsService? _settingsService;
     private static LockSessionManager? _lockSessionManager;
+    private static TrayIconService? _trayIconService;
 
     public static SettingsService SettingsService => _settingsService ??= new SettingsService();
     public static LockSessionManager LockSessionManager => _lockSessionManager ??= new LockSessionManager(SettingsService);
+    public static TrayIconService? TrayIconService => _trayIconService;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -73,7 +82,7 @@ public partial class App : Application
             return;
         }
 
-        // Prevent duplicate instances of Moonlit
+        // Prevent duplicate instances of Moonlit and activate existing running instance
         _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out bool isOnlyInstance);
         if (!isOnlyInstance)
         {
@@ -87,17 +96,21 @@ public partial class App : Application
                 }
                 catch (Exception ex)
                 {
-                    SettingsService.LogMessage($"Failed to signal existing Moonlit instance: {ex.Message}");
+                    SettingsService.LogMessage($"Failed to signal existing Moonlit instance lock event: {ex.Message}");
                 }
             }
             else
             {
-                MessageBox.Show(
-                    "Another instance of Moonlit is already active and running in the background.",
-                    "Moonlit",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                // If Moonlit is already running, immediately restore/display MainWindow to the user
+                try
+                {
+                    using var showEvent = EventWaitHandle.OpenExisting(ShowWindowEventName);
+                    showEvent.Set();
+                }
+                catch (Exception ex)
+                {
+                    SettingsService.LogMessage($"Failed to signal existing Moonlit instance show event: {ex.Message}");
+                }
             }
             Shutdown();
             return;
@@ -106,10 +119,13 @@ public partial class App : Application
         // Keep app alive in background for lock session / hotkey monitoring
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        // Initialize IPC named event listener for external lock requests (shortcuts, scripts)
+        // Initialize IPC named event listeners for external lock & show requests
         _lockEventHandle = new EventWaitHandle(false, EventResetMode.AutoReset, LockEventName);
+        _showWindowEventHandle = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
         _cts = new CancellationTokenSource();
         var cancelToken = _cts.Token;
+
+        var waitHandles = new WaitHandle[] { _lockEventHandle, _showWindowEventHandle, cancelToken.WaitHandle };
 
         Task.Run(() =>
         {
@@ -117,14 +133,20 @@ public partial class App : Application
             {
                 try
                 {
-                    if (_lockEventHandle.WaitOne(1000))
+                    var triggeredIndex = WaitHandle.WaitAny(waitHandles);
+                    if (cancelToken.IsCancellationRequested) break;
+
+                    if (triggeredIndex == 0) // Lock requested
                     {
-                        if (cancelToken.IsCancellationRequested) break;
                         Dispatcher.Invoke(() =>
                         {
                             var currentSettings = SettingsService.LoadSettings();
                             LockSessionManager.LaunchLockExperience(currentSettings, lockOnDismiss: true);
                         });
+                    }
+                    else if (triggeredIndex == 1) // Show MainWindow requested
+                    {
+                        Dispatcher.Invoke(ShowMainWindow);
                     }
                 }
                 catch
@@ -133,6 +155,14 @@ public partial class App : Application
                 }
             }
         }, cancelToken);
+
+        // Initialize System Tray Icon
+        _trayIconService = new TrayIconService(
+            onOpenDashboard: ShowMainWindow,
+            onLockNow: () => LockSessionManager.LockNow(),
+            onExit: ExitApplication
+        );
+        _trayIconService.Initialize();
 
         // Ensure LockSessionManager is instantiated to begin monitoring Win+L and session events
         var sessionManager = LockSessionManager;
@@ -146,8 +176,7 @@ public partial class App : Application
         else if (isBootMode)
         {
             // Issue 5: When starting on boot, if configured, present the cinematic lock screen.
-            // Crucially, lockOnDismiss MUST be true so dismissing it transitions to Windows PIN/Password authentication,
-            // making it function and feel like an authentic, secure lock screen!
+            // Crucially, lockOnDismiss MUST be true so dismissing it transitions to Windows PIN/Password authentication
             if (settings.LockExperienceEnabled && settings.StartOnBootAsLockScreen && !string.IsNullOrWhiteSpace(settings.VideoPath))
             {
                 SettingsService.LogMessage("Boot launch detected: Presenting initial cinematic lock screen experience (lockOnDismiss = true).");
@@ -161,10 +190,110 @@ public partial class App : Application
         else
         {
             // Standard launch: open settings dashboard
-            var mainWindow = new MainWindow();
-            MainWindow = mainWindow;
-            mainWindow.Show();
+            ShowMainWindow();
         }
+    }
+
+    /// <summary>
+    /// Displays or restores the MainWindow settings dashboard to the front of the screen.
+    /// </summary>
+    public static void ShowMainWindow()
+    {
+        Current.Dispatcher.Invoke(() =>
+        {
+            if (Current.MainWindow is MainWindow existingWindow && existingWindow.IsLoaded)
+            {
+                if (existingWindow.WindowState == WindowState.Minimized)
+                {
+                    existingWindow.WindowState = WindowState.Normal;
+                }
+                existingWindow.Show();
+                existingWindow.Activate();
+                existingWindow.Focus();
+
+                var helper = new WindowInteropHelper(existingWindow);
+                if (helper.Handle != IntPtr.Zero)
+                {
+                    SetForegroundWindow(helper.Handle);
+                }
+            }
+            else
+            {
+                var newWindow = new MainWindow();
+                Current.MainWindow = newWindow;
+                newWindow.Show();
+                newWindow.Activate();
+                newWindow.Focus();
+
+                var helper = new WindowInteropHelper(newWindow);
+                if (helper.Handle != IntPtr.Zero)
+                {
+                    SetForegroundWindow(helper.Handle);
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Completely and immediately stops Moonlit, removes the tray icon, terminates background threads, and exits.
+    /// </summary>
+    public static void ExitApplication()
+    {
+        SettingsService.LogMessage("Immediate exit requested by user.");
+
+        try
+        {
+            _trayIconService?.Dispose();
+            _trayIconService = null;
+        }
+        catch { }
+
+        try
+        {
+            _lockSessionManager?.Dispose();
+            _lockSessionManager = null;
+        }
+        catch { }
+
+        try
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+        }
+        catch { }
+
+        try
+        {
+            _lockEventHandle?.Dispose();
+            _lockEventHandle = null;
+
+            _showWindowEventHandle?.Dispose();
+            _showWindowEventHandle = null;
+        }
+        catch { }
+
+        try
+        {
+            Current?.Dispatcher.Invoke(() =>
+            {
+                foreach (Window window in Current.Windows)
+                {
+                    try { window.Close(); } catch { }
+                }
+            });
+        }
+        catch { }
+
+        try
+        {
+            _singleInstanceMutex?.ReleaseMutex();
+            _singleInstanceMutex?.Dispose();
+            _singleInstanceMutex = null;
+        }
+        catch { }
+
+        Environment.Exit(0);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -190,12 +319,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         SettingsService.LogMessage($"Moonlit application exiting with code {e.ApplicationExitCode}.");
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _lockEventHandle?.Dispose();
-        _lockSessionManager?.Dispose();
-        _singleInstanceMutex?.ReleaseMutex();
-        _singleInstanceMutex?.Dispose();
+        ExitApplication();
         base.OnExit(e);
     }
 }
