@@ -1,5 +1,6 @@
 using System.Windows;
 using Microsoft.Win32;
+using Moonlit.Integration;
 using Moonlit.Models;
 using Moonlit.Views;
 
@@ -14,6 +15,7 @@ public sealed class LockSessionManager : IDisposable
     private readonly KeyboardHookService _keyboardHook;
     private LockExperienceWindow? _activeLockWindow;
     private AppSettings _currentSettings;
+    private bool _isWorkstationLocked;
     private bool _isDisposed;
 
     public event EventHandler<bool>? LockExperienceStateChanged;
@@ -54,14 +56,38 @@ public sealed class LockSessionManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// Programmatically triggers the full-screen cinematic lock experience with secure lock-on-dismiss.
+    /// </summary>
+    public void LockNow()
+    {
+        LaunchLockExperience(_currentSettings, lockOnDismiss: true);
+    }
+
     private void OnKeyboardLockRequested(object? sender, EventArgs e)
     {
-        _settingsService.LogMessage("Global lock shortcut (Win+L / Ctrl+Alt+L) detected.");
+        _settingsService.LogMessage("Global lock shortcut detected.");
 
-        if (_currentSettings.LockExperienceEnabled)
+        if (_isWorkstationLocked)
         {
-            LaunchLockExperience(_currentSettings, lockOnDismiss: true);
+            _settingsService.LogMessage("Shortcut ignored: workstation is already locked.");
+            return;
         }
+
+        if (!_currentSettings.LockExperienceEnabled)
+        {
+            return;
+        }
+
+        // If Win+L was pressed, check if DisableLockWorkstation is active in registry
+        var isWinLPolicyActive = WindowsIntegration.IsLockWorkstationDisabled();
+        if (_keyboardHook.LastShortcutWasWinL && !isWinLPolicyActive)
+        {
+            _settingsService.LogMessage("Win+L detected but DisableLockWorkstation policy is not configured. Windows will switch to Winlogon; skipping Moonlit window to avoid background audio bleed.");
+            return;
+        }
+
+        LaunchLockExperience(_currentSettings, lockOnDismiss: true);
     }
 
     private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
@@ -71,11 +97,27 @@ public sealed class LockSessionManager : IDisposable
         switch (e.Reason)
         {
             case SessionSwitchReason.SessionLock:
-                // Workstation locked
+                _isWorkstationLocked = true;
+                _settingsService.LogMessage("Workstation locked. Muting and closing active lock window to prevent audio bleed into Winlogon desktop.");
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (_activeLockWindow != null)
+                    {
+                        _activeLockWindow.StopAndMutePlayback();
+                        _activeLockWindow.Close();
+                        _activeLockWindow = null;
+                        LockExperienceStateChanged?.Invoke(this, false);
+                    }
+                });
                 break;
 
             case SessionSwitchReason.SessionUnlock:
-                // User unlocked / authenticated
+                _isWorkstationLocked = false;
+                _settingsService.LogMessage("Session unlocked. Re-enabling Win+L policy if configured.");
+                if (_currentSettings.LockExperienceEnabled && _currentSettings.InterceptWinL)
+                {
+                    WindowsIntegration.SetLockWorkstationDisabled(true);
+                }
                 Application.Current.Dispatcher.Invoke(CloseLockExperience);
                 break;
         }

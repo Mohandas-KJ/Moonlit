@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using Microsoft.Win32;
 
 namespace Moonlit.Services;
@@ -126,6 +128,58 @@ public sealed class StartupService
                 IsEnabled: IsStartupEnabled(),
                 Message: $"Failed to configure startup: {ex.Message}"
             );
+        }
+    }
+
+    /// <summary>
+    /// Creates convenient "Lock PC with Moonlit" shortcuts on Desktop and in Start Menu Programs.
+    /// </summary>
+    public static bool CreateLockShortcuts()
+    {
+        try
+        {
+            var exePath = GetExecutablePath();
+            var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            var startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
+            var programsPath = Path.Combine(startMenuPath, "Programs");
+
+            var desktopShortcut = Path.Combine(desktopPath, "Lock PC with Moonlit.lnk").Replace("'", "''");
+            var startMenuShortcut = Path.Combine(programsPath, "Lock PC with Moonlit.lnk").Replace("'", "''");
+            var escapedExe = exePath.Replace("'", "''");
+
+            var script = $@"
+$w = New-Object -COM WScript.Shell
+$s1 = $w.CreateShortcut('{desktopShortcut}')
+$s1.TargetPath = '{escapedExe}'
+$s1.Arguments = '--lock'
+$s1.IconLocation = '{escapedExe},0'
+$s1.Description = 'Lock PC with Moonlit Cinematic Lock Screen'
+$s1.Save()
+
+$s2 = $w.CreateShortcut('{startMenuShortcut}')
+$s2.TargetPath = '{escapedExe}'
+$s2.Arguments = '--lock'
+$s2.IconLocation = '{escapedExe},0'
+$s2.Description = 'Lock PC with Moonlit Cinematic Lock Screen'
+$s2.Save()
+";
+
+            var encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -NonInteractive -EncodedCommand {encoded}",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(psi);
+            process?.WaitForExit(5000);
+            return process?.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
         }
     }
 

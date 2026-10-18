@@ -70,6 +70,13 @@ public partial class VideoBackground : UserControl
         Player.Stop();
     }
 
+    public void StopAndMute()
+    {
+        Player.IsMuted = true;
+        Player.Stop();
+        Player.Close();
+    }
+
     public void Close()
     {
         Player.Close();

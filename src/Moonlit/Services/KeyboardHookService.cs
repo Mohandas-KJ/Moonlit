@@ -17,6 +17,7 @@ public sealed class KeyboardHookService : IDisposable
     private const int VK_RWIN = 0x5C;
     private const int VK_CONTROL = 0x11;
     private const int VK_MENU = 0x12; // Alt key
+    private const int VK_SHIFT = 0x10;
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -30,6 +31,11 @@ public sealed class KeyboardHookService : IDisposable
     public event EventHandler? LockRequested;
 
     public bool IsHookActive => _hookId != IntPtr.Zero;
+
+    /// <summary>
+    /// Indicates whether the most recently intercepted shortcut was specifically Win + L.
+    /// </summary>
+    public bool LastShortcutWasWinL { get; private set; }
 
     public KeyboardHookService()
     {
@@ -70,10 +76,12 @@ public sealed class KeyboardHookService : IDisposable
                 var winDown = (GetAsyncKeyState(VK_LWIN) & 0x8000) != 0 || (GetAsyncKeyState(VK_RWIN) & 0x8000) != 0;
                 var ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
                 var altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+                var shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 
-                // Win + L, Ctrl + Alt + L, or Win + Alt + L
-                if (winDown || (ctrlDown && altDown))
+                // Win + L, Ctrl + Alt + L, Win + Alt + L, or Ctrl + Shift + L
+                if (winDown || (ctrlDown && altDown) || (ctrlDown && shiftDown))
                 {
+                    LastShortcutWasWinL = winDown && !ctrlDown;
                     LockRequested?.Invoke(this, EventArgs.Empty);
                     return (IntPtr)1; // Swallow key stroke
                 }

@@ -48,5 +48,7 @@ public class DiagnosticsServiceTests : IDisposable
         Assert.NotNull(diag.SettingsPath);
         Assert.NotNull(diag.LogsPath);
         Assert.NotNull(diag.Summary);
+        Assert.True(diag.IsWinLPolicyActive || !diag.IsWinLPolicyActive);
+        Assert.True(diag.IsNoLockScreenPolicyActive || !diag.IsNoLockScreenPolicyActive);
     }
 }

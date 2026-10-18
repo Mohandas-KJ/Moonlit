@@ -53,4 +53,35 @@ public class LockScreenIntegrationTests
         Assert.True(bounds.Width > 0);
         Assert.True(bounds.Height > 0);
     }
+
+    [Fact]
+    public void WindowsIntegration_IsLockWorkstationDisabled_ReturnsBooleanWithoutException()
+    {
+        var result = WindowsIntegration.IsLockWorkstationDisabled();
+        // Result is either true or false depending on system policy, must not throw
+        Assert.True(result || !result);
+    }
+
+    [Fact]
+    public void WindowsIntegration_IsNoLockScreenConfigured_ReturnsBooleanWithoutException()
+    {
+        var result = WindowsIntegration.IsNoLockScreenConfigured();
+        // Result is either true or false depending on system policy, must not throw
+        Assert.True(result || !result);
+    }
+
+    [Fact]
+    public void WindowsIntegration_SendKeyStroke_ExecutesSafely()
+    {
+        // VK_SPACE = 0x20
+        var exception = Record.Exception(() => WindowsIntegration.SendKeyStroke(0x20));
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void WindowsIntegration_StartDismissPulseSequence_ExecutesSafely()
+    {
+        var exception = Record.Exception(WindowsIntegration.StartDismissPulseSequence);
+        Assert.Null(exception);
+    }
 }

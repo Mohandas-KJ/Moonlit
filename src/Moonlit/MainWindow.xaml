@@ -252,6 +252,73 @@
                 <Border Style="{StaticResource CardPanelStyle}">
                     <StackPanel>
                         <TextBlock Text="Lock Screen Integration &amp; Shortcuts" Style="{StaticResource SectionHeadingStyle}" />
+                        <TextBlock Text="Configure Windows session integration, hotkeys, and lock behavior." Style="{StaticResource BodyTextStyle}" Margin="0,0,0,12" />
+
+                        <!-- SYSTEM POLICIES & ELEVATED SETUP BOX -->
+                        <Border Background="#12161F" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="Windows System Integration &amp; Policy Status" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" FontSize="13" Margin="0,0,0,8" />
+                                
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Win + L Direct Routing (DisableLockWorkstation)" FontWeight="Medium" FontSize="12" Foreground="{StaticResource PrimaryTextBrush}" />
+                                        <TextBlock Text="Allows Win + L to launch Moonlit without being intercepted by the Windows kernel." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" x:Name="WinLPolicyStatusLabel" Text="Not Configured" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Skip Clock Curtain / Instant Password Prompt (NoLockScreen)" FontWeight="Medium" FontSize="12" Foreground="{StaticResource PrimaryTextBrush}" />
+                                        <TextBlock Text="Dismissing Moonlit opens your PIN / Password prompt directly, eliminating the static Windows clock." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" x:Name="NoLockScreenStatusLabel" Text="Not Configured" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Action Buttons Row -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button x:Name="ConfigurePoliciesButton"
+                                            Content="🚀 1-Click System Setup (Admin)"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Padding="14,6"
+                                            Margin="0,0,8,8"
+                                            Click="OnConfigureAllPoliciesClicked"
+                                            ToolTip="One-time administrator configuration to enable Win+L interception and bypass the Windows lock curtain." />
+
+                                    <Button x:Name="RevertPoliciesButton"
+                                            Content="Revert Policies"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0,0,8,8"
+                                            Click="OnRevertPoliciesClicked"
+                                            ToolTip="Restores default native Windows locking and clock curtain behavior." />
+
+                                    <Button x:Name="CreateShortcutsButton"
+                                            Content="Create Desktop &amp; Start Shortcuts"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0,0,8,8"
+                                            Click="OnCreateShortcutsClicked"
+                                            ToolTip="Creates 'Lock PC with Moonlit' shortcuts on your Desktop and in the Start Menu." />
+
+                                    <Button x:Name="AutoLogonButton"
+                                            Content="Configure Auto-Logon (netplwiz)"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0,0,0,8"
+                                            Click="OnOpenAutoLogonClicked"
+                                            ToolTip="Opens Windows Netplwiz so your PC boots straight into Moonlit's cinematic lock screen." />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Preference 1: Intercept Win + L / Hotkeys -->
                         <Grid Margin="0,4,0,10">
@@ -260,18 +327,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Intercept Win + L &amp; Global Lock Hotkey" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
-                                <TextBlock Text="Captures Win + L (and Ctrl + Alt + L) to immediately trigger Moonlit's full-screen cinematic lock screen." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock x:Name="WinLStatusText" Text="Hook active." Foreground="{StaticResource ReadyBrush}" FontSize="11" Margin="0,0,10,0" />
-                                    <Button x:Name="ConfigureWinLPolicyButton"
-                                            Content="Configure Win+L Registry Policy"
-                                            FontSize="11"
-                                            Padding="8,2"
-                                            Style="{StaticResource SecondaryButtonStyle}"
-                                            Click="OnConfigureWinLPolicyClicked"
-                                            ToolTip="Applies DisableLockWorkstation so Win+L routes directly to Moonlit without system lock interference." />
-                                </StackPanel>
+                                <TextBlock Text="Enable Global Lock Hotkey Hooks (Win + L, Ctrl + Alt + L, Win + Alt + L)" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
+                                <TextBlock Text="Listens for global lock combinations to trigger Moonlit's full-screen cinematic interface." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
+                                <TextBlock x:Name="WinLStatusText" Text="Hook active." Foreground="{StaticResource ReadyBrush}" FontSize="11" Margin="0,2,0,0" />
                             </StackPanel>
                             <CheckBox Grid.Column="1" x:Name="InterceptWinLCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="True" Checked="OnPreferenceChanged" Unchecked="OnPreferenceChanged" VerticalAlignment="Center" />
                         </Grid>
@@ -285,8 +343,8 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Skip Windows Lock Screen (Jump to Password / PIN)" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
-                                <TextBlock Text="When you interrupt Moonlit, sends an automatic key to dismiss the Windows clock curtain and jump straight to the PIN/password prompt." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
+                                <TextBlock Text="Skip Windows Clock Screen (Jump to Password / PIN)" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
+                                <TextBlock Text="Dismissing Moonlit immediately raises the Windows lock curtain to reveal your PIN / Password entry box." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
                             </StackPanel>
                             <CheckBox Grid.Column="1" x:Name="JumpToPasswordPromptCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="True" Checked="OnPreferenceChanged" Unchecked="OnPreferenceChanged" VerticalAlignment="Center" />
                         </Grid>
@@ -300,8 +358,8 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Play on Lock Screen at Boot" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
-                                <TextBlock Text="When your computer boots or starts up, Moonlit immediately plays full-screen so it feels like the authentic lock screen." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
+                                <TextBlock Text="Play on Lock Screen at Boot (Cinematic Startup)" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
+                                <TextBlock Text="Plays Moonlit full-screen when Windows starts up. Touching any key or mouse seamlessly transitions to your genuine Windows PIN / Password prompt." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
                             </StackPanel>
                             <CheckBox Grid.Column="1" x:Name="StartOnBootCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="True" Checked="OnPreferenceChanged" Unchecked="OnPreferenceChanged" VerticalAlignment="Center" />
                         </Grid>

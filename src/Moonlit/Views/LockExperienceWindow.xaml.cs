@@ -89,14 +89,25 @@ public partial class LockExperienceWindow : Window
         }
     }
 
+    public void StopAndMutePlayback()
+    {
+        try
+        {
+            VideoView.StopAndMute();
+        }
+        catch
+        {
+            // Ignore if already stopped
+        }
+    }
+
     private void DismissExperience()
     {
         if (_isDismissing) return;
         _isDismissing = true;
 
-        // 1. Stop video playback and release media resources
-        VideoView.Stop();
-        VideoView.Close();
+        // 1. Stop video playback and release media resources immediately to prevent audio bleed
+        StopAndMutePlayback();
 
         // 2. Hide window immediately before locking
         Hide();
@@ -106,15 +117,10 @@ public partial class LockExperienceWindow : Window
         {
             WindowsIntegration.TriggerWindowsLock();
 
-            // 4. Issue 2: Send keystroke to jump directly to password/PIN prompt and skip Windows clock
+            // 4. Issue 2 & 4: Multi-pulse dismissal sequence to skip Windows clock curtain
             if (_jumpToPasswordPrompt)
             {
-                Task.Run(async () =>
-                {
-                    // Delay to allow Winlogon desktop to switch and receive synthetic key input
-                    await Task.Delay(200);
-                    WindowsIntegration.SendDismissKeystroke();
-                });
+                WindowsIntegration.StartDismissPulseSequence();
             }
         }
 
@@ -123,8 +129,7 @@ public partial class LockExperienceWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        VideoView.Stop();
-        VideoView.Close();
+        StopAndMutePlayback();
         base.OnClosed(e);
     }
 }

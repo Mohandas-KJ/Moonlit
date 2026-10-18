@@ -13,14 +13,68 @@ public static class WindowsIntegration
     private const string PoliciesSystemKey = @"Software\Microsoft\Windows\CurrentVersion\Policies\System";
     private const string DisableLockValue = "DisableLockWorkstation";
 
-    private const byte VK_SPACE = 0x20;
+    private const string PoliciesPersonalizationKey = @"SOFTWARE\Policies\Microsoft\Windows\Personalization";
+    private const string NoLockScreenValue = "NoLockScreen";
+
+    private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
+
+    private const ushort VK_SPACE = 0x20;
+    private const ushort VK_RETURN = 0x0D;
+    private const ushort VK_UP = 0x26;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct INPUT
+    {
+        public uint type;
+        public InputUnion u;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct InputUnion
+    {
+        [FieldOffset(0)]
+        public MOUSEINPUT mi;
+        [FieldOffset(0)]
+        public KEYBDINPUT ki;
+        [FieldOffset(0)]
+        public HARDWAREINPUT hi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct HARDWAREINPUT
+    {
+        public uint uMsg;
+        public ushort wParamL;
+        public ushort wParamH;
+    }
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool LockWorkStation();
 
     [DllImport("user32.dll", SetLastError = true)]
-    private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
     /// <summary>
     /// Calls the official Windows user32.dll LockWorkStation API to lock the workstation,
@@ -43,7 +97,7 @@ public static class WindowsIntegration
             if (wasDisabled)
             {
                 // Re-disable locking asynchronously after the lock takes effect
-                Task.Delay(500).ContinueWith(_ => SetLockWorkstationDisabled(true));
+                Task.Delay(1000).ContinueWith(_ => SetLockWorkstationDisabled(true));
             }
 
             return locked;
@@ -55,21 +109,73 @@ public static class WindowsIntegration
     }
 
     /// <summary>
-    /// Sends a synthetic keystroke (Space) to dismiss the Windows lock screen clock curtain
-    /// and jump directly into the Password / PIN entry prompt.
+    /// Sends a synthetic key stroke down and up using the modern Win32 SendInput API.
     /// </summary>
-    public static void SendDismissKeystroke()
+    public static void SendKeyStroke(ushort virtualKey)
     {
         try
         {
-            // Small pause to allow desktop switch to register the input
-            keybd_event(VK_SPACE, 0, 0, UIntPtr.Zero);
-            keybd_event(VK_SPACE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            var inputs = new INPUT[2];
+
+            // Key Down
+            inputs[0] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                u = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = virtualKey,
+                        wScan = 0,
+                        dwFlags = 0,
+                        time = 0,
+                        dwExtraInfo = UIntPtr.Zero
+                    }
+                }
+            };
+
+            // Key Up
+            inputs[1] = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                u = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = virtualKey,
+                        wScan = 0,
+                        dwFlags = KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = UIntPtr.Zero
+                    }
+                }
+            };
+
+            SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
         }
         catch
         {
-            // Non-critical
+            // Non-critical fallback
         }
+    }
+
+    /// <summary>
+    /// Sends a timed pulse sequence of keystrokes (Space, Return, Up Arrow) across multiple intervals
+    /// to guarantee the Windows lock curtain is dismissed and the PIN/Password prompt is revealed.
+    /// </summary>
+    public static void StartDismissPulseSequence()
+    {
+        Task.Run(async () =>
+        {
+            var intervals = new[] { 350, 400, 450, 500 };
+            var keys = new[] { VK_SPACE, VK_RETURN, VK_UP, VK_SPACE };
+
+            for (int i = 0; i < intervals.Length; i++)
+            {
+                await Task.Delay(intervals[i]);
+                SendKeyStroke(keys[i]);
+            }
+        });
     }
 
     /// <summary>
@@ -89,6 +195,54 @@ public static class WindowsIntegration
         {
             // Fall through
         }
+
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(PoliciesSystemKey, writable: false);
+            if (key?.GetValue(DisableLockValue) is int val)
+            {
+                return val == 1;
+            }
+        }
+        catch
+        {
+            // Fall through
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether the Windows NoLockScreen policy is enabled (skipping the lock curtain entirely).
+    /// </summary>
+    public static bool IsNoLockScreenConfigured()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(PoliciesPersonalizationKey, writable: false);
+            if (key?.GetValue(NoLockScreenValue) is int val)
+            {
+                return val == 1;
+            }
+        }
+        catch
+        {
+            // Fall through
+        }
+
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(PoliciesPersonalizationKey, writable: false);
+            if (key?.GetValue(NoLockScreenValue) is int val)
+            {
+                return val == 1;
+            }
+        }
+        catch
+        {
+            // Fall through
+        }
+
         return false;
     }
 
@@ -109,7 +263,7 @@ public static class WindowsIntegration
                 }
                 else
                 {
-                    key.DeleteValue(DisableLockValue, throwOnMissingValue: false);
+                    key.SetValue(DisableLockValue, 0, RegistryValueKind.DWord);
                 }
                 return true;
             }
@@ -122,28 +276,121 @@ public static class WindowsIntegration
     }
 
     /// <summary>
-    /// Invokes an elevated registry modification via reg.exe to toggle DisableLockWorkstation.
+    /// Executes a one-time elevated PowerShell script that:
+    /// 1. Grants the current user FullControl permissions on HKCU\Policies\System so Moonlit can toggle Win+L without UAC.
+    /// 2. Sets DisableLockWorkstation = 1.
+    /// 3. Sets HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization\NoLockScreen = 1 to skip the static clock curtain.
     /// </summary>
-    public static bool SetLockWorkstationDisabledElevated(bool disable)
+    public static bool ConfigurePoliciesElevated()
     {
         try
         {
-            var command = disable
-                ? $"add \"HKCU\\{PoliciesSystemKey}\" /v {DisableLockValue} /t REG_DWORD /d 1 /f"
-                : $"delete \"HKCU\\{PoliciesSystemKey}\" /v {DisableLockValue} /f";
+            var script = @"
+$ErrorActionPreference = 'Stop'
+$user = ""$env:USERDOMAIN\$env:USERNAME""
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 
-            var startInfo = new ProcessStartInfo
+# 1. Ensure HKCU Policies System key exists and grant current user FullControl
+$regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
+if (!(Test-Path $regPath)) {
+    New-Item -Path $regPath -Force | Out-Null
+}
+$acl = Get-Acl $regPath
+$rule = New-Object System.Security.AccessControl.RegistryAccessRule($user, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+$acl.AddAccessRule($rule)
+Set-Acl $regPath $acl
+Set-ItemProperty -Path $regPath -Name 'DisableLockWorkstation' -Value 1 -Type DWord
+
+# 2. Also ensure User SID path in HKEY_USERS has the policy and permissions
+$sidPath = ""Registry::HKEY_USERS\$sid\Software\Microsoft\Windows\CurrentVersion\Policies\System""
+if (Test-Path ""Registry::HKEY_USERS\$sid"") {
+    if (!(Test-Path $sidPath)) {
+        New-Item -Path $sidPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $sidPath -Name 'DisableLockWorkstation' -Value 1 -Type DWord
+}
+
+# 3. Disable native Lock Screen Clock Curtain (NoLockScreen)
+$persPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'
+if (!(Test-Path $persPath)) {
+    New-Item -Path $persPath -Force | Out-Null
+}
+Set-ItemProperty -Path $persPath -Name 'NoLockScreen' -Value 1 -Type DWord
+";
+
+            var encodedScript = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
+            var psi = new ProcessStartInfo
             {
-                FileName = "reg.exe",
-                Arguments = command,
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}",
                 UseShellExecute = true,
                 Verb = "runas",
                 WindowStyle = ProcessWindowStyle.Hidden
             };
 
-            using var process = Process.Start(startInfo);
-            process?.WaitForExit(5000);
+            using var process = Process.Start(psi);
+            process?.WaitForExit(10000);
             return process?.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Executes an elevated removal of Moonlit policies, reverting to native Windows locking and clock curtain.
+    /// </summary>
+    public static bool RemovePoliciesElevated()
+    {
+        try
+        {
+            var script = @"
+$ErrorActionPreference = 'SilentlyContinue'
+$regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
+if (Test-Path $regPath) {
+    Remove-ItemProperty -Path $regPath -Name 'DisableLockWorkstation' -ErrorAction SilentlyContinue
+}
+
+$persPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'
+if (Test-Path $persPath) {
+    Remove-ItemProperty -Path $persPath -Name 'NoLockScreen' -ErrorAction SilentlyContinue
+}
+";
+
+            var encodedScript = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}",
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+
+            using var process = Process.Start(psi);
+            process?.WaitForExit(10000);
+            return process?.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Launches Windows Netplwiz (User Accounts control panel) to allow configuring automatic logon on boot.
+    /// </summary>
+    public static bool OpenAutoLogonUtility()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "netplwiz.exe",
+                UseShellExecute = true
+            });
+            return true;
         }
         catch
         {

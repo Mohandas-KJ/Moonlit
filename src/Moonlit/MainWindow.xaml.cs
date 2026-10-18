@@ -122,49 +122,131 @@ public partial class MainWindow : Window
 
     private void UpdateWinLStatusText()
     {
-        var policySet = WindowsIntegration.IsLockWorkstationDisabled();
-        if (policySet)
+        var isWinLConfigured = WindowsIntegration.IsLockWorkstationDisabled();
+        var isNoLockScreenConfigured = WindowsIntegration.IsNoLockScreenConfigured();
+
+        // 1. Win+L policy indicator
+        if (isWinLConfigured)
         {
-            WinLStatusText.Text = "Policy configured: Win+L & Ctrl+Alt+L routed to Moonlit.";
-            WinLStatusText.Foreground = (Brush)FindResource("ReadyBrush");
-            ConfigureWinLPolicyButton.Content = "Disable Win+L Policy";
+            WinLPolicyStatusLabel.Text = "Configured (Active)";
+            WinLPolicyStatusLabel.Foreground = (Brush)FindResource("ReadyBrush");
         }
         else
         {
-            WinLStatusText.Text = "Active for Ctrl+Alt+L and Win+Alt+L. (Click button to configure Win+L direct route).";
+            WinLPolicyStatusLabel.Text = "Not Configured";
+            WinLPolicyStatusLabel.Foreground = (Brush)FindResource("WarningBrush");
+        }
+
+        // 2. NoLockScreen indicator
+        if (isNoLockScreenConfigured)
+        {
+            NoLockScreenStatusLabel.Text = "Configured (Bypassing Curtain)";
+            NoLockScreenStatusLabel.Foreground = (Brush)FindResource("ReadyBrush");
+        }
+        else
+        {
+            NoLockScreenStatusLabel.Text = "Not Configured";
+            NoLockScreenStatusLabel.Foreground = (Brush)FindResource("WarningBrush");
+        }
+
+        // 3. Hotkey status text
+        if (isWinLConfigured)
+        {
+            WinLStatusText.Text = "Active: Win+L and Ctrl+Alt+L directly launch Moonlit.";
+            WinLStatusText.Foreground = (Brush)FindResource("ReadyBrush");
+        }
+        else
+        {
+            WinLStatusText.Text = "Active for Ctrl+Alt+L, Win+Alt+L, and Ctrl+Shift+L. (Click 1-Click Setup to enable Win+L).";
             WinLStatusText.Foreground = (Brush)FindResource("SecondaryTextBrush");
-            ConfigureWinLPolicyButton.Content = "Configure Win+L Registry Policy";
         }
     }
 
-    private void OnConfigureWinLPolicyClicked(object sender, RoutedEventArgs e)
+    private void OnConfigureAllPoliciesClicked(object sender, RoutedEventArgs e)
     {
-        var currentlyDisabled = WindowsIntegration.IsLockWorkstationDisabled();
-        var desiredState = !currentlyDisabled;
-
-        // Try direct write first
-        var success = WindowsIntegration.SetLockWorkstationDisabled(desiredState);
-        if (!success)
-        {
-            // Request elevated modification
-            success = WindowsIntegration.SetLockWorkstationDisabledElevated(desiredState);
-        }
+        var success = WindowsIntegration.ConfigurePoliciesElevated();
+        UpdateWinLStatusText();
+        RefreshStatus();
 
         if (success)
         {
-            UpdateWinLStatusText();
-            ShowTemporaryFeedback(desiredState
-                ? "Win+L policy enabled. Win+L now directly triggers Moonlit!"
-                : "Win+L policy removed. Standard Windows locking restored.");
+            ShowTemporaryFeedback("System policies configured! Win+L and curtain bypass are now active.");
+            MessageBox.Show(
+                "Moonlit system integration policies have been successfully configured!\n\n" +
+                "• Win+L is now directly routed to Moonlit.\n" +
+                "• The static Windows clock curtain is bypassed to jump straight to your PIN/password prompt.\n" +
+                "• Full permissions have been granted to toggle locking seamlessly.",
+                "System Integration Ready",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
         }
         else
         {
             MessageBox.Show(
-                "Unable to update DisableLockWorkstation registry policy. Please run Moonlit as Administrator.",
+                "Unable to apply system policies. Administrator privileges were cancelled or restricted.",
                 "Policy Notice",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning
             );
+        }
+    }
+
+    private void OnRevertPoliciesClicked(object sender, RoutedEventArgs e)
+    {
+        var success = WindowsIntegration.RemovePoliciesElevated();
+        UpdateWinLStatusText();
+        RefreshStatus();
+
+        if (success)
+        {
+            ShowTemporaryFeedback("Policies reverted. Default Windows locking restored.");
+        }
+    }
+
+    private void OnCreateShortcutsClicked(object sender, RoutedEventArgs e)
+    {
+        var success = StartupService.CreateLockShortcuts();
+        if (success)
+        {
+            ShowTemporaryFeedback("Created 'Lock PC with Moonlit' shortcuts on Desktop & Start Menu!");
+            MessageBox.Show(
+                "Shortcuts successfully created!\n\n" +
+                "• 'Lock PC with Moonlit' is now on your Desktop.\n" +
+                "• 'Lock PC with Moonlit' is now in your Start Menu Programs.\n\n" +
+                "You can click either shortcut anytime to instantly display your cinematic lock screen.",
+                "Shortcuts Created",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
+        }
+        else
+        {
+            ShowTemporaryFeedback("Failed to create shortcuts.");
+        }
+    }
+
+    private void OnOpenAutoLogonClicked(object sender, RoutedEventArgs e)
+    {
+        var success = WindowsIntegration.OpenAutoLogonUtility();
+        if (success)
+        {
+            ShowTemporaryFeedback("Opened Windows Netplwiz (User Accounts).");
+            MessageBox.Show(
+                "Windows Netplwiz (User Accounts) has opened.\n\n" +
+                "To have your PC boot directly into Moonlit's cinematic lock screen:\n" +
+                "1. Select your user account.\n" +
+                "2. Uncheck 'Users must enter a user name and password to use this computer'.\n" +
+                "3. Click 'Apply' and confirm your password.\n\n" +
+                "When your PC powers on, it will boot directly into Moonlit, and touching any key/mouse will require your PIN/Password to unlock!",
+                "Auto-Logon Guidance",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
+        }
+        else
+        {
+            ShowTemporaryFeedback("Unable to launch Netplwiz.");
         }
     }
 
@@ -491,7 +573,9 @@ public partial class MainWindow : Window
             $"Video Configured:        {diag.IsVideoConfigured}\n" +
             $"Video Accessible:        {diag.IsVideoAccessible}\n" +
             $"Lock Experience Enabled: {diag.IsLockExperienceEnabled}\n" +
-            $"Intercept Win+L:         {_currentSettings.InterceptWinL}\n" +
+            $"Win+L Intercept Hook:    {_currentSettings.InterceptWinL}\n" +
+            $"Win+L Registry Policy:   {(diag.IsWinLPolicyActive ? "Configured (Active)" : "Not Set (Elevated setup required)")}\n" +
+            $"NoLockScreen Policy:     {(diag.IsNoLockScreenPolicyActive ? "Configured (Curtain bypassed)" : "Not Set")}\n" +
             $"Jump to Password Prompt: {_currentSettings.JumpToPasswordPrompt}\n" +
             $"Startup at Sign-in:      {diag.IsStartupEnabled}\n" +
             $"Settings File:           {diag.SettingsPath}\n" +

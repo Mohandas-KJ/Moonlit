@@ -18,6 +18,8 @@ public sealed record SystemDiagnostics(
     string? VideoError,
     bool IsStartupEnabled,
     bool IsLockExperienceEnabled,
+    bool IsWinLPolicyActive,
+    bool IsNoLockScreenPolicyActive,
     string SettingsPath,
     string LogsPath,
     string Summary
@@ -55,6 +57,8 @@ public sealed class DiagnosticsService
         var isVideoAccessible = videoValidation?.IsValid ?? false;
 
         var isStartupEnabled = _startupService.IsStartupEnabled();
+        var isWinLPolicyActive = WindowsIntegration.IsLockWorkstationDisabled();
+        var isNoLockScreenPolicyActive = WindowsIntegration.IsNoLockScreenConfigured();
 
         var summary = BuildSummary(isSupportedOs, isVideoConfigured, isVideoAccessible, settings.LockExperienceEnabled);
 
@@ -69,6 +73,8 @@ public sealed class DiagnosticsService
             VideoError: videoValidation?.ErrorMessage,
             IsStartupEnabled: isStartupEnabled,
             IsLockExperienceEnabled: settings.LockExperienceEnabled,
+            IsWinLPolicyActive: isWinLPolicyActive,
+            IsNoLockScreenPolicyActive: isNoLockScreenPolicyActive,
             SettingsPath: _settingsService.SettingsFilePath,
             LogsPath: _settingsService.LogsDirectory,
             Summary: summary

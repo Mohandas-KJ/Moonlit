@@ -17,4 +17,11 @@ public class KeyboardHookServiceTests
         hookService.StopHook();
         Assert.False(hookService.IsHookActive);
     }
+
+    [Fact]
+    public void KeyboardHookService_LastShortcutWasWinL_DefaultsToFalse()
+    {
+        using var hookService = new KeyboardHookService();
+        Assert.False(hookService.LastShortcutWasWinL);
+    }
 }

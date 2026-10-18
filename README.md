@@ -86,7 +86,7 @@ Moonlit/
 │           └── app-icon.ico          # Moonlit icon
 │
 └── tests/
-    └── Moonlit.Tests/                # 29 automated xUnit unit tests
+    └── Moonlit.Tests/                # 35 automated xUnit unit tests
 ```
 
 ---
@@ -115,6 +115,19 @@ or execute the compiled binary directly:
 ```text
 src\Moonlit\bin\Release\net10.0-windows\Moonlit.exe
 ```
+
+### Command-Line Arguments & Shortcuts
+| Argument | Description |
+|---|---|
+| `--lock` or `-l` | Instantly displays Moonlit's full-screen cinematic lock screen. If Moonlit is already active, signals it over IPC in microseconds. |
+| `--boot` or `-b` | Launch mode for Windows Startup. Plays the cinematic lock screen on startup (if enabled) and transitions securely to Windows PIN/Password on dismissal. |
+| `--setup-policies` | Executes an elevated one-click configuration to enable `Win + L` direct interception and bypass the Windows lock curtain (`NoLockScreen`). |
+
+### Global Shortcuts & Navigation
+- **`Win + L`**: Seamlessly launches Moonlit's cinematic lock screen when system policy is configured.
+- **`Ctrl + Alt + L`**: Universal global shortcut, works out of the box on all Windows configurations.
+- **`Ctrl + Shift + L`**: Alternative quick-lock shortcut.
+- **Desktop & Start Menu Shortcuts**: Click "Create Desktop & Start Shortcuts" in Settings to place 1-click lock icons anywhere.
 
 ---
 
