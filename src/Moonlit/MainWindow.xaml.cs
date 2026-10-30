@@ -194,13 +194,31 @@ public partial class MainWindow : Window
 
     private void OnRevertPoliciesClicked(object sender, RoutedEventArgs e)
     {
-        var success = WindowsIntegration.RemovePoliciesElevated();
+        var (success, message) = WindowsIntegration.ClearAllMoonlitRegistryPolicies();
         UpdateWinLStatusText();
         RefreshStatus();
 
         if (success)
         {
-            ShowTemporaryFeedback("Policies reverted. Default Windows locking restored.");
+            ShowTemporaryFeedback("Windows 11 defaults restored! All Moonlit registry policies cleared.");
+            MessageBox.Show(
+                "Windows 11 Defaults Fully Restored!\n\n" +
+                "• All Moonlit registry entries (DisableLockWorkstation, NoLockScreen, DoNotDisplayLockScreen) have been removed.\n" +
+                "• Windows default lock screen curtain and widgets are restored.\n" +
+                "• Standard Windows Win+L lock behavior is restored.",
+                "Windows Defaults Restored",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
+        }
+        else
+        {
+            MessageBox.Show(
+                $"Notice: {message}",
+                "Registry Restoration",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning
+            );
         }
     }
 

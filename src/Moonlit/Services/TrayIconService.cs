@@ -209,6 +209,31 @@ public sealed class TrayIconService : IDisposable
 
         menu.Items.Add(new Separator { Background = new SolidColorBrush(Color.FromRgb(0x2E, 0x34, 0x42)) });
 
+        // One-Click Restore Windows Defaults (Clear Registry)
+        var restoreDefaultsItem = new MenuItem
+        {
+            Header = "Restore Windows Defaults (Clear Registry)",
+            Foreground = new SolidColorBrush(Color.FromRgb(0xFA, 0xB0, 0x05))
+        };
+        restoreDefaultsItem.Click += (_, _) =>
+        {
+            var result = MessageBox.Show(
+                "Restore default Windows lock screen and hotkey behaviors?\n\nThis will completely remove all Moonlit policies from the Windows registry.",
+                "Restore Windows Defaults",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question
+            );
+
+            if (result == MessageBoxResult.Yes)
+            {
+                var (success, message) = Moonlit.Integration.WindowsIntegration.ClearAllMoonlitRegistryPolicies();
+                ShowBalloon("Moonlit — Settings Reverted", success ? "Windows defaults restored." : message);
+            }
+        };
+        menu.Items.Add(restoreDefaultsItem);
+
+        menu.Items.Add(new Separator { Background = new SolidColorBrush(Color.FromRgb(0x2E, 0x34, 0x42)) });
+
         // Exit Moonlit
         var exitItem = new MenuItem
         {

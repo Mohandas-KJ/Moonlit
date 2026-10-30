@@ -294,12 +294,13 @@
                                             ToolTip="One-time administrator configuration to enable Win+L interception and bypass the Windows lock curtain." />
 
                                     <Button x:Name="RevertPoliciesButton"
-                                            Content="Revert Policies"
+                                            Content="🧹 1-Click Restore Windows Defaults (Clear Registry)"
                                             Style="{StaticResource SecondaryButtonStyle}"
-                                            Padding="12,6"
+                                            Padding="14,6"
                                             Margin="0,0,8,8"
                                             Click="OnRevertPoliciesClicked"
-                                            ToolTip="Restores default native Windows locking and clock curtain behavior." />
+                                            Foreground="#FAB005"
+                                            ToolTip="Completely removes all Moonlit registry policies and restores native Windows 11 lock screen curtain, widgets, and default hotkey handling." />
 
                                     <Button x:Name="CreateShortcutsButton"
                                             Content="Create Desktop &amp; Start Shortcuts"

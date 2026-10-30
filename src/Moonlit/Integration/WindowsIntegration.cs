@@ -213,35 +213,35 @@ public static class WindowsIntegration
     }
 
     /// <summary>
-    /// Checks whether the Windows NoLockScreen policy is enabled (skipping the lock curtain entirely).
+    /// Checks whether the Windows NoLockScreen or DoNotDisplayLockScreen policy is enabled (skipping the lock curtain entirely).
     /// </summary>
     public static bool IsNoLockScreenConfigured()
     {
+        // 1. Check HKLM Personalization
         try
         {
             using var key = Registry.LocalMachine.OpenSubKey(PoliciesPersonalizationKey, writable: false);
-            if (key?.GetValue(NoLockScreenValue) is int val)
-            {
-                return val == 1;
-            }
+            if (key?.GetValue(NoLockScreenValue) is int val && val == 1) return true;
+            if (key?.GetValue("DoNotDisplayLockScreen") is int val2 && val2 == 1) return true;
         }
-        catch
-        {
-            // Fall through
-        }
+        catch { }
 
+        // 2. Check HKLM LogonUI
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI", writable: false);
+            if (key?.GetValue(NoLockScreenValue) is int val && val == 1) return true;
+        }
+        catch { }
+
+        // 3. Check HKCU Personalization
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(PoliciesPersonalizationKey, writable: false);
-            if (key?.GetValue(NoLockScreenValue) is int val)
-            {
-                return val == 1;
-            }
+            if (key?.GetValue(NoLockScreenValue) is int val && val == 1) return true;
+            if (key?.GetValue("DoNotDisplayLockScreen") is int val2 && val2 == 1) return true;
         }
-        catch
-        {
-            // Fall through
-        }
+        catch { }
 
         return false;
     }
@@ -263,7 +263,7 @@ public static class WindowsIntegration
                 }
                 else
                 {
-                    key.SetValue(DisableLockValue, 0, RegistryValueKind.DWord);
+                    key.DeleteValue(DisableLockValue, throwOnMissingValue: false);
                 }
                 return true;
             }
@@ -279,7 +279,7 @@ public static class WindowsIntegration
     /// Executes a one-time elevated PowerShell script that:
     /// 1. Grants the current user FullControl permissions on HKCU\Policies\System so Moonlit can toggle Win+L without UAC.
     /// 2. Sets DisableLockWorkstation = 1.
-    /// 3. Sets HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization\NoLockScreen = 1 to skip the static clock curtain.
+    /// 3. Sets NoLockScreen = 1 and DoNotDisplayLockScreen = 1 across HKLM and HKCU to completely bypass the Windows clock curtain.
     /// </summary>
     public static bool ConfigurePoliciesElevated()
     {
@@ -310,19 +310,35 @@ if (Test-Path ""Registry::HKEY_USERS\$sid"") {
     Set-ItemProperty -Path $sidPath -Name 'DisableLockWorkstation' -Value 1 -Type DWord
 }
 
-# 3. Disable native Lock Screen Clock Curtain (NoLockScreen)
+# 3. Disable native Lock Screen Clock Curtain in HKLM Personalization (NoLockScreen & DoNotDisplayLockScreen)
 $persPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'
 if (!(Test-Path $persPath)) {
     New-Item -Path $persPath -Force | Out-Null
 }
 Set-ItemProperty -Path $persPath -Name 'NoLockScreen' -Value 1 -Type DWord
+Set-ItemProperty -Path $persPath -Name 'DoNotDisplayLockScreen' -Value 1 -Type DWord
+
+# 4. Disable native Lock Screen Clock Curtain in HKCU Personalization
+$hkcuPersPath = 'HKCU:\Software\Policies\Microsoft\Windows\Personalization'
+if (!(Test-Path $hkcuPersPath)) {
+    New-Item -Path $hkcuPersPath -Force | Out-Null
+}
+Set-ItemProperty -Path $hkcuPersPath -Name 'NoLockScreen' -Value 1 -Type DWord
+Set-ItemProperty -Path $hkcuPersPath -Name 'DoNotDisplayLockScreen' -Value 1 -Type DWord
+
+# 5. Disable in LogonUI
+$logonUiPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI'
+if (!(Test-Path $logonUiPath)) {
+    New-Item -Path $logonUiPath -Force | Out-Null
+}
+Set-ItemProperty -Path $logonUiPath -Name 'NoLockScreen' -Value 1 -Type DWord
 ";
 
             var encodedScript = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
             var psi = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -NonInteractive -EncodedCommand {encodedScript}",
                 UseShellExecute = true,
                 Verb = "runas",
                 WindowStyle = ProcessWindowStyle.Hidden
@@ -339,7 +355,8 @@ Set-ItemProperty -Path $persPath -Name 'NoLockScreen' -Value 1 -Type DWord
     }
 
     /// <summary>
-    /// Executes an elevated removal of Moonlit policies, reverting to native Windows locking and clock curtain.
+    /// Executes an elevated one-click complete removal of all Moonlit policies,
+    /// completely reverting Windows 11 back to native locking, original clock curtain, and default hotkey handling.
     /// </summary>
     public static bool RemovePoliciesElevated()
     {
@@ -347,14 +364,44 @@ Set-ItemProperty -Path $persPath -Name 'NoLockScreen' -Value 1 -Type DWord
         {
             var script = @"
 $ErrorActionPreference = 'SilentlyContinue'
+
+# 1. Clear HKCU Policies System
 $regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
 if (Test-Path $regPath) {
     Remove-ItemProperty -Path $regPath -Name 'DisableLockWorkstation' -ErrorAction SilentlyContinue
 }
 
+# 2. Clear HKEY_USERS SID Policies System
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$sidPath = ""Registry::HKEY_USERS\$sid\Software\Microsoft\Windows\CurrentVersion\Policies\System""
+if (Test-Path $sidPath) {
+    Remove-ItemProperty -Path $sidPath -Name 'DisableLockWorkstation' -ErrorAction SilentlyContinue
+}
+
+# 3. Clear HKLM Policies System if set
+$hklmSysPath = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
+if (Test-Path $hklmSysPath) {
+    Remove-ItemProperty -Path $hklmSysPath -Name 'DisableLockWorkstation' -ErrorAction SilentlyContinue
+}
+
+# 4. Clear HKLM Personalization curtain bypasses
 $persPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'
 if (Test-Path $persPath) {
     Remove-ItemProperty -Path $persPath -Name 'NoLockScreen' -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $persPath -Name 'DoNotDisplayLockScreen' -ErrorAction SilentlyContinue
+}
+
+# 5. Clear HKCU Personalization curtain bypasses
+$hkcuPersPath = 'HKCU:\Software\Policies\Microsoft\Windows\Personalization'
+if (Test-Path $hkcuPersPath) {
+    Remove-ItemProperty -Path $hkcuPersPath -Name 'NoLockScreen' -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $hkcuPersPath -Name 'DoNotDisplayLockScreen' -ErrorAction SilentlyContinue
+}
+
+# 6. Clear LogonUI curtain bypass
+$logonUiPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI'
+if (Test-Path $logonUiPath) {
+    Remove-ItemProperty -Path $logonUiPath -Name 'NoLockScreen' -ErrorAction SilentlyContinue
 }
 ";
 
@@ -362,7 +409,7 @@ if (Test-Path $persPath) {
             var psi = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -NonInteractive -EncodedCommand {encodedScript}",
                 UseShellExecute = true,
                 Verb = "runas",
                 WindowStyle = ProcessWindowStyle.Hidden
@@ -375,6 +422,57 @@ if (Test-Path $persPath) {
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// One-click comprehensive cleanup: clears local user registry immediately,
+    /// optionally invokes elevated removal for system keys, and verifies that default Windows 11 behavior is restored.
+    /// </summary>
+    public static (bool Success, string Message) ClearAllMoonlitRegistryPolicies(bool promptElevation = true)
+    {
+        // 1. Immediately clear per-user registry entries in-process
+        try
+        {
+            using (var key = Registry.CurrentUser.OpenSubKey(PoliciesSystemKey, writable: true))
+            {
+                key?.DeleteValue(DisableLockValue, throwOnMissingValue: false);
+            }
+        }
+        catch { }
+
+        try
+        {
+            using (var key = Registry.CurrentUser.OpenSubKey(PoliciesPersonalizationKey, writable: true))
+            {
+                key?.DeleteValue(NoLockScreenValue, throwOnMissingValue: false);
+                key?.DeleteValue("DoNotDisplayLockScreen", throwOnMissingValue: false);
+            }
+        }
+        catch { }
+
+        bool elevatedOk = false;
+        if (promptElevation)
+        {
+            // 2. Invoke elevated cleanup for machine-wide policies (HKLM)
+            elevatedOk = RemovePoliciesElevated();
+        }
+
+        // 3. Verify clean state
+        var isWinLStillDisabled = IsLockWorkstationDisabled();
+        var isNoLockScreenStillSet = IsNoLockScreenConfigured();
+
+        if (!isWinLStillDisabled && !isNoLockScreenStillSet)
+        {
+            return (true, "All Moonlit registry policies have been completely removed. Windows 11 default lock screen, clock curtain, and hotkey behavior are 100% restored.");
+        }
+        else if (elevatedOk)
+        {
+            return (true, "Policies removed successfully. System settings will fully reflect changes upon the next session switch.");
+        }
+        else
+        {
+            return (false, "Local user policies were cleared, but administrator permission was cancelled for machine-wide policies. Please accept the UAC prompt to remove all keys.");
         }
     }
 

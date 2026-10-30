@@ -84,4 +84,23 @@ public class LockScreenIntegrationTests
         var exception = Record.Exception(WindowsIntegration.StartDismissPulseSequence);
         Assert.Null(exception);
     }
+
+    [Fact]
+    public void WindowsIntegration_SetLockWorkstationDisabled_ExecutesSafely()
+    {
+        // Safe toggle test: ensuring no crash when writing/deleting local user policy
+        var exception = Record.Exception(() => WindowsIntegration.SetLockWorkstationDisabled(false));
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void WindowsIntegration_ClearAllMoonlitRegistryPolicies_ReturnsResultSafely()
+    {
+        var exception = Record.Exception(() =>
+        {
+            var (success, message) = WindowsIntegration.ClearAllMoonlitRegistryPolicies(promptElevation: false);
+            Assert.NotNull(message);
+        });
+        Assert.Null(exception);
+    }
 }
