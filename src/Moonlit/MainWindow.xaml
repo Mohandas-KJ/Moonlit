@@ -68,6 +68,22 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
             <StackPanel>
 
+                <!-- 0. AESTHETIC / PERSONAL CUSTOMIZATION DISCLAIMER -->
+                <Border Background="#1C1814" BorderBrush="#664D1A" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="✨" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Personal Customization Notice" FontWeight="SemiBold" Foreground="#FAB005" FontSize="12" />
+                            <TextBlock Text="Moonlit is crafted for users who want an awesome, aesthetic cinematic lock experience on their personal PC. It is not intended for enterprise, government, or high-security regulatory compliance environments."
+                                       Foreground="#D4D9E2" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
                 <!-- 1. STATUS CARD -->
                 <Border Style="{StaticResource CardPanelStyle}">
                     <Grid>
@@ -320,6 +336,22 @@
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
+
+                        <!-- Preference 0: Moonlit Interactive PIN Sign-In (Mac-Style) -->
+                        <Grid Margin="0,4,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Enable Moonlit Interactive PIN Sign-In (Mac-Style)" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
+                                <TextBlock Text="On any keypress or click, the clock slides up, video blurs, and asks for PIN (Default: 1080). After 1 min of inactivity, it gently returns to clock and video playback." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
+                                <TextBlock Text="Current Testing PIN: 1080" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" x:Name="MoonlitPinScreenCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="True" Checked="OnPreferenceChanged" Unchecked="OnPreferenceChanged" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Separator Background="{StaticResource CardBorderBrush}" Margin="0,4,10,10" />
 
                         <!-- Preference 1: Intercept Win + L / Hotkeys -->
                         <Grid Margin="0,4,0,10">

@@ -12,10 +12,138 @@
         Focusable="True">
 
     <Grid Background="Black">
-        <!-- Layer 1: Cinematic Video Background -->
-        <views:VideoBackground x:Name="VideoView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <!-- Layer 1: Cinematic Video Background with Dynamic Hardware Blur -->
+        <Grid x:Name="VideoContainer" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <views:VideoBackground x:Name="VideoView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        </Grid>
 
-        <!-- Layer 2: Live Clock & Date Overlay with Vignette & Dimming -->
-        <views:ClockOverlay x:Name="ClockView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <!-- Layer 2: Live Clock & Date Overlay with Vertical Smooth Translation -->
+        <Grid x:Name="ClockContainer" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <views:ClockOverlay x:Name="ClockView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        </Grid>
+
+        <!-- Layer 3: Interactive Moonlit PIN Sign-in Container -->
+        <Grid x:Name="PinEntryContainer"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Opacity="0"
+              Visibility="Collapsed"
+              Margin="0,180,0,0">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="PinTranslateTransform" X="0" Y="40" />
+            </Grid.RenderTransform>
+
+            <Border x:Name="PinCardBorder"
+                    Width="360"
+                    Background="#E6121620"
+                    BorderBrush="#38435C"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="26,24">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Color="#000000" Opacity="0.75" />
+                </Border.Effect>
+
+                <StackPanel HorizontalAlignment="Center">
+                    <!-- Security / Avatar Icon -->
+                    <Border Width="60" Height="60" CornerRadius="30" Margin="0,0,0,12" HorizontalAlignment="Center" BorderThickness="1.5">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#28334A" Offset="0"/>
+                                <GradientStop Color="#1A202E" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Border.BorderBrush>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#8AB4FF" Offset="0"/>
+                                <GradientStop Color="#4A72FF" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.BorderBrush>
+                        <TextBlock Text="🔒" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+
+                    <!-- User Name Greeting -->
+                    <TextBlock x:Name="UserNameText"
+                               Text="Welcome"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#FFFFFF"
+                               FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,3" />
+
+                    <TextBlock Text="Enter PIN to unlock"
+                               FontSize="12"
+                               Foreground="#A6ACB8"
+                               FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,16" />
+
+                    <!-- PIN Input & Submit Row -->
+                    <Grid Width="260" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- PIN PasswordBox -->
+                        <Border Grid.Column="0"
+                                Background="#0D1017"
+                                BorderBrush="#353E54"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="10,4"
+                                Margin="0,0,8,0">
+                            <PasswordBox x:Name="PinInputBox"
+                                         Background="Transparent"
+                                         Foreground="#FFFFFF"
+                                         BorderThickness="0"
+                                         FontSize="20"
+                                         FontWeight="SemiBold"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         PasswordChar="●"
+                                         PasswordChanged="OnPinPasswordChanged"
+                                         KeyDown="OnPinInputKeyDown" />
+                        </Border>
+
+                        <!-- Submit Arrow Button -->
+                        <Button Grid.Column="1"
+                                x:Name="UnlockButton"
+                                Content="➔"
+                                FontSize="18"
+                                FontWeight="Bold"
+                                Width="40" Height="40"
+                                Foreground="#FFFFFF"
+                                Background="#4A72FF"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="OnUnlockButtonClicked">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+
+                    <!-- Error Feedback Text -->
+                    <TextBlock x:Name="PinErrorText"
+                               Text="Incorrect PIN. Please try again."
+                               Foreground="#FF737B"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               Visibility="Collapsed"
+                               Margin="0,0,0,8" />
+
+                    <!-- Inactivity Return Hint -->
+                    <TextBlock Text="Press Esc or wait 1 min to return"
+                               FontSize="11"
+                               Foreground="#6B7488"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

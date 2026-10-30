@@ -17,6 +17,8 @@ public class AppSettingsTests
         Assert.True(settings.InterceptWinL);
         Assert.True(settings.JumpToPasswordPrompt);
         Assert.True(settings.StartOnBootAsLockScreen);
+        Assert.True(settings.UseMoonlitPinScreen);
+        Assert.Equal("1080", settings.MoonlitPin);
         Assert.False(settings.Use24HourFormat);
         Assert.False(settings.ShowSeconds);
         Assert.Equal("Center", settings.ClockAlignment);
@@ -35,6 +37,8 @@ public class AppSettingsTests
             InterceptWinL = true,
             JumpToPasswordPrompt = true,
             StartOnBootAsLockScreen = true,
+            UseMoonlitPinScreen = true,
+            MoonlitPin = "1080",
             Use24HourFormat = true,
             ShowSeconds = true,
             ClockAlignment = "BottomLeft",
@@ -52,6 +56,8 @@ public class AppSettingsTests
         Assert.Equal(original.InterceptWinL, clone.InterceptWinL);
         Assert.Equal(original.JumpToPasswordPrompt, clone.JumpToPasswordPrompt);
         Assert.Equal(original.StartOnBootAsLockScreen, clone.StartOnBootAsLockScreen);
+        Assert.Equal(original.UseMoonlitPinScreen, clone.UseMoonlitPinScreen);
+        Assert.Equal(original.MoonlitPin, clone.MoonlitPin);
         Assert.Equal(original.Use24HourFormat, clone.Use24HourFormat);
         Assert.Equal(original.ShowSeconds, clone.ShowSeconds);
         Assert.Equal(original.ClockAlignment, clone.ClockAlignment);
@@ -71,6 +77,8 @@ public class AppSettingsTests
             InterceptWinL = false,
             JumpToPasswordPrompt = true,
             StartOnBootAsLockScreen = true,
+            UseMoonlitPinScreen = true,
+            MoonlitPin = "1080",
             Use24HourFormat = true,
             ShowSeconds = false,
             ClockAlignment = "TopLeft",

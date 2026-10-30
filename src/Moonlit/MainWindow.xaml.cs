@@ -92,6 +92,7 @@ public partial class MainWindow : Window
         DimmingValueText.Text = $"{Math.Round(DimmingSlider.Value)}%";
 
         // 3. Lock Integration Preferences
+        MoonlitPinScreenCheckBox.IsChecked = _currentSettings.UseMoonlitPinScreen;
         InterceptWinLCheckBox.IsChecked = _currentSettings.InterceptWinL;
         JumpToPasswordPromptCheckBox.IsChecked = _currentSettings.JumpToPasswordPrompt;
         StartOnBootCheckBox.IsChecked = _currentSettings.StartOnBootAsLockScreen;
@@ -448,6 +449,7 @@ public partial class MainWindow : Window
         _currentSettings.InterceptWinL = InterceptWinLCheckBox.IsChecked ?? true;
         _currentSettings.JumpToPasswordPrompt = JumpToPasswordPromptCheckBox.IsChecked ?? true;
         _currentSettings.StartOnBootAsLockScreen = StartOnBootCheckBox.IsChecked ?? true;
+        _currentSettings.UseMoonlitPinScreen = MoonlitPinScreenCheckBox.IsChecked ?? true;
 
         _lockSessionManager.UpdateSettings(_currentSettings);
         RefreshStatus();
@@ -518,6 +520,7 @@ public partial class MainWindow : Window
         _currentSettings.InterceptWinL = InterceptWinLCheckBox.IsChecked ?? true;
         _currentSettings.JumpToPasswordPrompt = JumpToPasswordPromptCheckBox.IsChecked ?? true;
         _currentSettings.StartOnBootAsLockScreen = StartOnBootCheckBox.IsChecked ?? true;
+        _currentSettings.UseMoonlitPinScreen = MoonlitPinScreenCheckBox.IsChecked ?? true;
         _currentSettings.LaunchAtSignIn = StartupCheckBox.IsChecked ?? false;
         _currentSettings.Use24HourFormat = Format24HourCheckBox.IsChecked ?? false;
         _currentSettings.ShowSeconds = ShowSecondsCheckBox.IsChecked ?? false;

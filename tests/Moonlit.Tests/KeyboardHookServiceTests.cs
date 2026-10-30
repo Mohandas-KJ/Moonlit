@@ -24,4 +24,17 @@ public class KeyboardHookServiceTests
         using var hookService = new KeyboardHookService();
         Assert.False(hookService.LastShortcutWasWinL);
     }
+
+    [Fact]
+    public void KeyboardHookService_IsKioskLockActive_CanBeToggled()
+    {
+        using var hookService = new KeyboardHookService();
+        Assert.False(hookService.IsKioskLockActive);
+
+        hookService.IsKioskLockActive = true;
+        Assert.True(hookService.IsKioskLockActive);
+
+        hookService.IsKioskLockActive = false;
+        Assert.False(hookService.IsKioskLockActive);
+    }
 }

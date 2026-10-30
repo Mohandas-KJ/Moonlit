@@ -77,6 +77,18 @@ public sealed class AppSettings
     public double DimmingOpacity { get; set; } = 0.25;
 
     /// <summary>
+    /// Whether to display Moonlit's own interactive cinematic PIN sign-in screen upon waking the lock screen.
+    /// </summary>
+    [JsonPropertyName("useMoonlitPinScreen")]
+    public bool UseMoonlitPinScreen { get; set; } = true;
+
+    /// <summary>
+    /// The PIN used to unlock Moonlit and return to the desktop (Defaults to 1080 for testing).
+    /// </summary>
+    [JsonPropertyName("moonlitPin")]
+    public string MoonlitPin { get; set; } = "1080";
+
+    /// <summary>
     /// Timestamp of when settings were last saved.
     /// </summary>
     [JsonPropertyName("lastSaved")]
@@ -94,6 +106,8 @@ public sealed class AppSettings
         LockExperienceEnabled = LockExperienceEnabled,
         InterceptWinL = InterceptWinL,
         JumpToPasswordPrompt = JumpToPasswordPrompt,
+        UseMoonlitPinScreen = UseMoonlitPinScreen,
+        MoonlitPin = MoonlitPin,
         Use24HourFormat = Use24HourFormat,
         ShowSeconds = ShowSeconds,
         ClockAlignment = ClockAlignment,

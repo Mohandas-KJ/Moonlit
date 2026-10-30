@@ -137,8 +137,10 @@ public sealed class LockSessionManager : IDisposable
             }
 
             _activeLockWindow = new LockExperienceWindow();
+            _keyboardHook.IsKioskLockActive = true;
             _activeLockWindow.Closed += (_, _) =>
             {
+                _keyboardHook.IsKioskLockActive = false;
                 _activeLockWindow = null;
                 LockExperienceStateChanged?.Invoke(this, false);
             };
@@ -154,6 +156,7 @@ public sealed class LockSessionManager : IDisposable
     /// </summary>
     public void CloseLockExperience()
     {
+        _keyboardHook.IsKioskLockActive = false;
         if (_activeLockWindow != null)
         {
             try

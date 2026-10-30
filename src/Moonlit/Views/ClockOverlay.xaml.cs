@@ -76,6 +76,15 @@ public partial class ClockOverlay : UserControl
         set => DismissHintBorder.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>
+    /// Smoothly animates the opacity of the bottom dismiss / sign-in hint label.
+    /// </summary>
+    public void AnimateHintOpacity(double targetOpacity, TimeSpan duration)
+    {
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(targetOpacity, duration);
+        DismissHintBorder.BeginAnimation(UIElement.OpacityProperty, anim);
+    }
+
     public void ApplyAlignment(string alignment)
     {
         switch (alignment)

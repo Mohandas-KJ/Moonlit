@@ -18,6 +18,10 @@ public sealed class KeyboardHookService : IDisposable
     private const int VK_CONTROL = 0x11;
     private const int VK_MENU = 0x12; // Alt key
     private const int VK_SHIFT = 0x10;
+    private const int VK_TAB = 0x09;
+    private const int VK_ESCAPE = 0x1B;
+    private const int VK_SPACE = 0x20;
+    private const int VK_F4 = 0x73;
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -31,6 +35,12 @@ public sealed class KeyboardHookService : IDisposable
     public event EventHandler? LockRequested;
 
     public bool IsHookActive => _hookId != IntPtr.Zero;
+
+    /// <summary>
+    /// When true, Moonlit's lock experience window is active in full-screen kiosk overlay mode,
+    /// so system breakout combinations (Alt+Tab, Alt+F4, Windows key, Ctrl+Esc) are suppressed.
+    /// </summary>
+    public bool IsKioskLockActive { get; set; }
 
     /// <summary>
     /// Indicates whether the most recently intercepted shortcut was specifically Win + L.
@@ -70,14 +80,23 @@ public sealed class KeyboardHookService : IDisposable
         if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
         {
             var vkCode = Marshal.ReadInt32(lParam);
+            var winDown = (GetAsyncKeyState(VK_LWIN) & 0x8000) != 0 || (GetAsyncKeyState(VK_RWIN) & 0x8000) != 0;
+            var ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+            var altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+            var shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+
+            if (IsKioskLockActive)
+            {
+                // Suppress keys that attempt to switch away or close the lock screen without PIN
+                if (vkCode == VK_TAB && altDown) return (IntPtr)1; // Alt + Tab
+                if (vkCode == VK_ESCAPE && (altDown || ctrlDown)) return (IntPtr)1; // Alt + Esc or Ctrl + Esc
+                if (vkCode == VK_F4 && altDown) return (IntPtr)1; // Alt + F4
+                if (vkCode == VK_SPACE && altDown) return (IntPtr)1; // Alt + Space
+                if (vkCode == VK_LWIN || vkCode == VK_RWIN) return (IntPtr)1; // Win key
+            }
 
             if (vkCode == VK_L)
             {
-                var winDown = (GetAsyncKeyState(VK_LWIN) & 0x8000) != 0 || (GetAsyncKeyState(VK_RWIN) & 0x8000) != 0;
-                var ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-                var altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
-                var shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
-
                 // Win + L, Ctrl + Alt + L, Win + Alt + L, or Ctrl + Shift + L
                 if (winDown || (ctrlDown && altDown) || (ctrlDown && shiftDown))
                 {
