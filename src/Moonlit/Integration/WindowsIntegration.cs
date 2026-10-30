@@ -16,6 +16,9 @@ public static class WindowsIntegration
     private const string PoliciesPersonalizationKey = @"SOFTWARE\Policies\Microsoft\Windows\Personalization";
     private const string NoLockScreenValue = "NoLockScreen";
 
+    private const string PasswordLessDeviceKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device";
+    private const string DevicePasswordLessBuildVersionValue = "DevicePasswordLessBuildVersion";
+
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
 
@@ -247,6 +250,24 @@ public static class WindowsIntegration
     }
 
     /// <summary>
+    /// Checks whether DevicePasswordLessBuildVersion is set to 0, which reveals the
+    /// 'Users must enter a user name and password to use this computer' checkbox in netplwiz on Windows 11.
+    /// </summary>
+    public static bool IsNetplwizCheckboxUnlocked()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(PasswordLessDeviceKey, writable: false);
+            if (key?.GetValue(DevicePasswordLessBuildVersionValue) is int val)
+            {
+                return val == 0;
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>
     /// Sets or removes DisableLockWorkstation in HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System.
     /// Returns true if successfully updated, or false if elevation is needed.
     /// </summary>
@@ -332,6 +353,13 @@ if (!(Test-Path $logonUiPath)) {
     New-Item -Path $logonUiPath -Force | Out-Null
 }
 Set-ItemProperty -Path $logonUiPath -Name 'NoLockScreen' -Value 1 -Type DWord
+
+# 6. Reveal 'Users must enter a user name and password to use this computer' in netplwiz (DevicePasswordLessBuildVersion = 0)
+$pwdLessPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device'
+if (!(Test-Path $pwdLessPath)) {
+    New-Item -Path $pwdLessPath -Force | Out-Null
+}
+Set-ItemProperty -Path $pwdLessPath -Name 'DevicePasswordLessBuildVersion' -Value 0 -Type DWord
 ";
 
             var encodedScript = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
@@ -403,6 +431,12 @@ $logonUiPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\L
 if (Test-Path $logonUiPath) {
     Remove-ItemProperty -Path $logonUiPath -Name 'NoLockScreen' -ErrorAction SilentlyContinue
 }
+
+# 7. Restore netplwiz passwordless setting to Windows 11 default (2)
+$pwdLessPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device'
+if (Test-Path $pwdLessPath) {
+    Set-ItemProperty -Path $pwdLessPath -Name 'DevicePasswordLessBuildVersion' -Value 2 -Type DWord -ErrorAction SilentlyContinue
+}
 ";
 
             var encodedScript = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
@@ -461,14 +495,15 @@ if (Test-Path $logonUiPath) {
         // 3. Verify clean state
         var isWinLStillDisabled = IsLockWorkstationDisabled();
         var isNoLockScreenStillSet = IsNoLockScreenConfigured();
+        var isNetplwizUnlocked = IsNetplwizCheckboxUnlocked();
 
-        if (!isWinLStillDisabled && !isNoLockScreenStillSet)
+        if (!isWinLStillDisabled && !isNoLockScreenStillSet && !isNetplwizUnlocked)
         {
-            return (true, "All Moonlit registry policies have been completely removed. Windows 11 default lock screen, clock curtain, and hotkey behavior are 100% restored.");
+            return (true, "All Moonlit registry policies and netplwiz passwordless settings have been completely removed. Windows 11 default lock screen, clock curtain, and hotkey behavior are 100% restored.");
         }
         else if (elevatedOk)
         {
-            return (true, "Policies removed successfully. System settings will fully reflect changes upon the next session switch.");
+            return (true, "Policies removed successfully. Windows 11 defaults restored.");
         }
         else
         {

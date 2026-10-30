@@ -299,6 +299,18 @@
                                     <TextBlock Grid.Column="1" x:Name="NoLockScreenStatusLabel" Text="Not Configured" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
                                 </Grid>
 
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Netplwiz Password Requirement Option (DevicePasswordLessBuildVersion)" FontWeight="Medium" FontSize="12" Foreground="{StaticResource PrimaryTextBrush}" />
+                                        <TextBlock Text="Sets DevicePasswordLessBuildVersion = 0 so Windows 11 netplwiz reveals the checkbox to enable automatic logon at boot." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" x:Name="NetplwizStatusLabel" Text="Hidden (Default)" Foreground="{StaticResource WarningBrush}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
+                                </Grid>
+
                                 <!-- Action Buttons Row -->
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button x:Name="ConfigurePoliciesButton"

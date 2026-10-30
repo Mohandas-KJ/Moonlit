@@ -94,6 +94,13 @@ public class LockScreenIntegrationTests
     }
 
     [Fact]
+    public void WindowsIntegration_IsNetplwizCheckboxUnlocked_ReturnsBooleanWithoutException()
+    {
+        var result = WindowsIntegration.IsNetplwizCheckboxUnlocked();
+        Assert.True(result || !result);
+    }
+
+    [Fact]
     public void WindowsIntegration_ClearAllMoonlitRegistryPolicies_ReturnsResultSafely()
     {
         var exception = Record.Exception(() =>

@@ -150,7 +150,20 @@ public partial class MainWindow : Window
             NoLockScreenStatusLabel.Foreground = (Brush)FindResource("WarningBrush");
         }
 
-        // 3. Hotkey status text
+        // 3. Netplwiz DevicePasswordLessBuildVersion indicator
+        var isNetplwizUnlocked = WindowsIntegration.IsNetplwizCheckboxUnlocked();
+        if (isNetplwizUnlocked)
+        {
+            NetplwizStatusLabel.Text = "Unlocked (Checkbox Visible)";
+            NetplwizStatusLabel.Foreground = (Brush)FindResource("ReadyBrush");
+        }
+        else
+        {
+            NetplwizStatusLabel.Text = "Hidden (Default: 2)";
+            NetplwizStatusLabel.Foreground = (Brush)FindResource("WarningBrush");
+        }
+
+        // 4. Hotkey status text
         if (isWinLConfigured)
         {
             WinLStatusText.Text = "Active: Win+L and Ctrl+Alt+L directly launch Moonlit.";
@@ -176,6 +189,7 @@ public partial class MainWindow : Window
                 "Moonlit system integration policies have been successfully configured!\n\n" +
                 "• Win+L is now directly routed to Moonlit.\n" +
                 "• The static Windows clock curtain is bypassed to jump straight to your PIN/password prompt.\n" +
+                "• DevicePasswordLessBuildVersion is set to 0: Netplwiz will now display the checkbox to allow automatic boot logon without entering credentials manually.\n" +
                 "• Full permissions have been granted to toggle locking seamlessly.",
                 "System Integration Ready",
                 MessageBoxButton.OK,
@@ -205,6 +219,7 @@ public partial class MainWindow : Window
             MessageBox.Show(
                 "Windows 11 Defaults Fully Restored!\n\n" +
                 "• All Moonlit registry entries (DisableLockWorkstation, NoLockScreen, DoNotDisplayLockScreen) have been removed.\n" +
+                "• DevicePasswordLessBuildVersion has been restored to Windows 11 default (2).\n" +
                 "• Windows default lock screen curtain and widgets are restored.\n" +
                 "• Standard Windows Win+L lock behavior is restored.",
                 "Windows Defaults Restored",
