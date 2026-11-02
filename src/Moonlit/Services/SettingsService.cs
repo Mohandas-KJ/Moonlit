@@ -148,7 +148,37 @@ public sealed class SettingsService
     {
         try
         {
+            if (!Directory.Exists(_logsDirectory))
+            {
+                Directory.CreateDirectory(_logsDirectory);
+            }
             var logFile = Path.Combine(_logsDirectory, "moonlit.log");
+            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
+            File.AppendAllText(logFile, line);
+        }
+        catch
+        {
+            // Lightweight logging must never crash the application.
+        }
+    }
+
+    /// <summary>
+    /// Static logger available application-wide for services without direct SettingsService reference.
+    /// </summary>
+    public static void Log(string message)
+    {
+        try
+        {
+            var baseDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Moonlit"
+            );
+            var logsDir = Path.Combine(baseDir, "logs");
+            if (!Directory.Exists(logsDir))
+            {
+                Directory.CreateDirectory(logsDir);
+            }
+            var logFile = Path.Combine(logsDir, "moonlit.log");
             var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
             File.AppendAllText(logFile, line);
         }

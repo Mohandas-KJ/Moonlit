@@ -3,7 +3,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Black">
     <Grid>
-        <!-- Full-Screen Video Background -->
+        <!-- Layer 0: Instant Atmospheric Startup Canvas (Visible immediately on frame 1) -->
+        <Border x:Name="AtmosphereCanvas"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Border.Background>
+                <RadialGradientBrush Center="0.5,0.4" GradientOrigin="0.5,0.4" RadiusX="0.8" RadiusY="0.8">
+                    <GradientStop Color="#181F2C" Offset="0.0" />
+                    <GradientStop Color="#0F131C" Offset="0.5" />
+                    <GradientStop Color="#06080B" Offset="1.0" />
+                </RadialGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <!-- Full-Screen Video Background with Smooth Frame 1 Fade-In -->
         <MediaElement x:Name="Player"
                       LoadedBehavior="Manual"
                       UnloadedBehavior="Stop"
@@ -11,6 +24,8 @@
                       Stretch="UniformToFill"
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch"
+                      Opacity="0"
+                      MediaOpened="OnMediaOpened"
                       MediaEnded="OnMediaEnded"
                       MediaFailed="OnMediaFailed" />
 

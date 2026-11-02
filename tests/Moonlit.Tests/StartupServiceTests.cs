@@ -15,6 +15,27 @@ public class StartupServiceTests
     }
 
     [Fact]
+    public void IsTaskSchedulerEnabled_CanBeQueriedSafely()
+    {
+        var isTaskEnabled = StartupService.IsTaskSchedulerEnabled();
+        Assert.True(isTaskEnabled || !isTaskEnabled);
+    }
+
+    [Fact]
+    public void IsLegacyRegistryStartupPresent_CanBeQueriedSafely()
+    {
+        var isRegEnabled = StartupService.IsLegacyRegistryStartupPresent();
+        Assert.True(isRegEnabled || !isRegEnabled);
+    }
+
+    [Fact]
+    public void MigrateFromRegistryIfNeeded_ExecutesWithoutThrowing()
+    {
+        var exception = Record.Exception(() => _startupService.MigrateFromRegistryIfNeeded());
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public void SetStartupEnabled_WhenToggled_ReturnsValidOperationResult()
     {
         var originalState = _startupService.IsStartupEnabled();

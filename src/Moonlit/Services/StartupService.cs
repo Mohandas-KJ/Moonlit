@@ -14,34 +14,47 @@ public sealed record StartupOperationResult(
 );
 
 /// <summary>
-/// Service managing the "Launch at Windows Sign-in / Boot" preference via per-user registry Run key.
+/// Service managing the "Instant Launch at Windows Sign-in / Boot" preference via Windows Task Scheduler.
+/// Runs Moonlit with zero delay upon user logon in the interactive user session.
+/// Automatically migrates legacy per-user registry entries to Task Scheduler.
 /// </summary>
 public sealed class StartupService
 {
+    private const string TaskName = "Moonlit";
     private const string RunRegistrySubKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "Moonlit";
 
     /// <summary>
-    /// Checks whether the application is currently registered to launch at user sign-in.
+    /// Checks whether Moonlit is registered for instant startup via Windows Task Scheduler
+    /// or legacy registry Run key.
     /// </summary>
     public bool IsStartupEnabled()
     {
+        if (IsTaskSchedulerEnabled())
+        {
+            return true;
+        }
+
+        return IsLegacyRegistryStartupPresent();
+    }
+
+    /// <summary>
+    /// Checks whether the Windows Task Scheduler startup task exists and is active.
+    /// </summary>
+    public static bool IsTaskSchedulerEnabled()
+    {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RunRegistrySubKey, writable: false);
-            if (key == null)
-            {
-                return false;
-            }
+            var scheduleType = Type.GetTypeFromProgID("Schedule.Service");
+            if (scheduleType == null) return false;
 
-            var value = key.GetValue(ValueName) as string;
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return false;
-            }
+            dynamic scheduler = Activator.CreateInstance(scheduleType)!;
+            scheduler.Connect();
 
-            var currentExecutable = GetExecutablePath();
-            return value.Contains(currentExecutable, StringComparison.OrdinalIgnoreCase);
+            dynamic rootFolder = scheduler.GetFolder(@"\");
+            dynamic? task = rootFolder.GetTask(TaskName);
+            if (task == null) return false;
+            return (bool)task.Enabled;
         }
         catch
         {
@@ -50,8 +63,55 @@ public sealed class StartupService
     }
 
     /// <summary>
-    /// Applies the user's startup preference and immediately verifies the result.
-    /// Passes '--boot' flag so Moonlit immediately presents the cinematic lock screen.
+    /// Checks whether a legacy startup entry exists in HKCU Run registry.
+    /// </summary>
+    public static bool IsLegacyRegistryStartupPresent()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunRegistrySubKey, writable: false);
+            if (key == null) return false;
+
+            var val = key.GetValue(ValueName) as string;
+            if (string.IsNullOrWhiteSpace(val)) return false;
+
+            var exe = GetExecutablePath();
+            return val.Contains(exe, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// If an existing Moonlit Registry Run entry is detected, safely migrates the configuration
+    /// to Windows Task Scheduler and removes the old entry only after successful registration.
+    /// </summary>
+    public void MigrateFromRegistryIfNeeded()
+    {
+        try
+        {
+            if (IsLegacyRegistryStartupPresent() && !IsTaskSchedulerEnabled())
+            {
+                var exe = GetExecutablePath();
+                var registered = RegisterTaskSchedulerTask(exe);
+                if (registered)
+                {
+                    RemoveLegacyRegistryEntry();
+                    SettingsService.Log("Successfully migrated startup registration from Registry Run to Windows Task Scheduler.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            SettingsService.Log($"Startup migration notice: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Enables or disables instant startup via Windows Task Scheduler.
+    /// Passes '--boot' flag so Moonlit immediately presents the full-screen cinematic lock experience.
     /// </summary>
     public StartupOperationResult SetStartupEnabled(bool enable)
     {
@@ -67,59 +127,38 @@ public sealed class StartupService
                 );
             }
 
-            using (var key = Registry.CurrentUser.OpenSubKey(RunRegistrySubKey, writable: true))
+            if (enable)
             {
-                if (key == null)
+                var registered = RegisterTaskSchedulerTask(executablePath);
+                if (registered)
                 {
+                    RemoveLegacyRegistryEntry();
                     return new StartupOperationResult(
-                        Success: false,
-                        IsEnabled: false,
-                        Message: "Unable to access the Windows current user Run registry key."
+                        Success: true,
+                        IsEnabled: true,
+                        Message: "Instant startup enabled via Windows Task Scheduler (At Log On, zero delay)."
                     );
-                }
-
-                if (enable)
-                {
-                    // Pass --boot so Moonlit starts directly as lock screen
-                    key.SetValue(ValueName, $"\"{executablePath}\" --boot");
                 }
                 else
                 {
-                    if (key.GetValue(ValueName) != null)
-                    {
-                        key.DeleteValue(ValueName, throwOnMissingValue: false);
-                    }
+                    return new StartupOperationResult(
+                        Success: false,
+                        IsEnabled: IsStartupEnabled(),
+                        Message: "Failed to register Windows Task Scheduler task."
+                    );
                 }
-            }
-
-            // Verification step: re-read the registry
-            var isActuallyEnabled = IsStartupEnabled();
-            if (isActuallyEnabled == enable)
-            {
-                return new StartupOperationResult(
-                    Success: true,
-                    IsEnabled: isActuallyEnabled,
-                    Message: enable
-                        ? "Launch at Windows sign-in has been enabled successfully."
-                        : "Launch at Windows sign-in has been disabled."
-                );
             }
             else
             {
+                DeleteTaskSchedulerTask();
+                RemoveLegacyRegistryEntry();
+
                 return new StartupOperationResult(
-                    Success: false,
-                    IsEnabled: isActuallyEnabled,
-                    Message: "Verification failed: Registry startup state does not match the requested state."
+                    Success: true,
+                    IsEnabled: false,
+                    Message: "Instant startup has been disabled."
                 );
             }
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return new StartupOperationResult(
-                Success: false,
-                IsEnabled: IsStartupEnabled(),
-                Message: "Access denied when updating startup registry settings."
-            );
         }
         catch (Exception ex)
         {
@@ -128,6 +167,95 @@ public sealed class StartupService
                 IsEnabled: IsStartupEnabled(),
                 Message: $"Failed to configure startup: {ex.Message}"
             );
+        }
+    }
+
+    private static bool RegisterTaskSchedulerTask(string executablePath)
+    {
+        try
+        {
+            var scheduleType = Type.GetTypeFromProgID("Schedule.Service");
+            if (scheduleType == null) return false;
+
+            dynamic scheduler = Activator.CreateInstance(scheduleType)!;
+            scheduler.Connect();
+
+            dynamic rootFolder = scheduler.GetFolder(@"\");
+            dynamic taskDef = scheduler.NewTask(0);
+
+            // 1. Current user identity for interactive desktop session
+            var currentIdentity = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+            taskDef.Principal.UserId = currentIdentity;
+            taskDef.Principal.LogonType = 3; // TASK_LOGON_INTERACTIVE_TOKEN
+
+            // 2. Trigger: At Log On without delay (TASK_TRIGGER_LOGON = 9)
+            dynamic trigger = taskDef.Triggers.Create(9);
+            trigger.UserId = currentIdentity;
+
+            // 3. Action: Launch Moonlit with --boot (TASK_ACTION_EXEC = 0)
+            dynamic action = taskDef.Actions.Create(0);
+            action.Path = executablePath;
+            action.Arguments = "--boot";
+
+            // 4. Performance & Reliability Settings
+            taskDef.Settings.DisallowStartIfOnBatteries = false;
+            taskDef.Settings.StopIfGoingOnBatteries = false;
+            taskDef.Settings.ExecutionTimeLimit = "PT0S"; // Infinite limit, does not kill app
+            taskDef.Settings.Priority = 4; // Interactive / normal priority
+            taskDef.Settings.AllowDemandStart = true;
+            taskDef.Settings.StartWhenAvailable = true;
+
+            // 5. Register with TASK_CREATE_OR_UPDATE (6) and TASK_LOGON_INTERACTIVE_TOKEN (3)
+            rootFolder.RegisterTaskDefinition(
+                TaskName,
+                taskDef,
+                6, // TASK_CREATE_OR_UPDATE
+                null,
+                null,
+                3  // TASK_LOGON_INTERACTIVE_TOKEN
+            );
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SettingsService.Log($"RegisterTaskSchedulerTask failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static void DeleteTaskSchedulerTask()
+    {
+        try
+        {
+            var scheduleType = Type.GetTypeFromProgID("Schedule.Service");
+            if (scheduleType == null) return;
+
+            dynamic scheduler = Activator.CreateInstance(scheduleType)!;
+            scheduler.Connect();
+
+            dynamic rootFolder = scheduler.GetFolder(@"\");
+            rootFolder.DeleteTask(TaskName, 0);
+        }
+        catch
+        {
+            // Task might not exist, ignore
+        }
+    }
+
+    private static void RemoveLegacyRegistryEntry()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunRegistrySubKey, writable: true);
+            if (key?.GetValue(ValueName) != null)
+            {
+                key.DeleteValue(ValueName, throwOnMissingValue: false);
+            }
+        }
+        catch
+        {
+            // Non-critical
         }
     }
 

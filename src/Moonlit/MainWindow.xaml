@@ -419,7 +419,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Launch at Windows Sign-in / Boot" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
-                                <TextBlock Text="Registers Moonlit in Windows Startup to run in the background and respond to lock events." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
+                                <TextBlock Text="Registers Moonlit via Windows Task Scheduler (At Log On, zero delay) for instant startup." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
                                 <TextBlock x:Name="StartupStatusHintText" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,2,0,0" />
                             </StackPanel>
                             <CheckBox Grid.Column="1" x:Name="StartupCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="False" Checked="OnStartupCheckboxToggled" Unchecked="OnStartupCheckboxToggled" VerticalAlignment="Center" />

@@ -5,6 +5,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Moonlit.Integration;
 using Moonlit.Models;
+using Moonlit.Services;
 
 namespace Moonlit.Views;
 
@@ -41,6 +42,7 @@ public partial class LockExperienceWindow : Window
     public LockExperienceWindow()
     {
         InitializeComponent();
+        StartupDiagnosticsTracker.RecordWindowCreated();
 
         // Cover the primary display
         var bounds = WindowsIntegration.GetPrimaryScreenBounds();
@@ -73,6 +75,7 @@ public partial class LockExperienceWindow : Window
 
     /// <summary>
     /// Configures the visual elements from the user's settings and starts the cinematic experience.
+    /// Prioritizes displaying the window and dynamic clock immediately, then initializes video asynchronously.
     /// </summary>
     public void ConfigureAndLaunch(AppSettings settings, bool lockOnDismiss = false)
     {
@@ -81,18 +84,7 @@ public partial class LockExperienceWindow : Window
         _useMoonlitPinScreen = settings.UseMoonlitPinScreen;
         _configuredPin = !string.IsNullOrWhiteSpace(settings.MoonlitPin) ? settings.MoonlitPin : "1080";
 
-        // Apply Clock settings
-        ClockView.Use24HourFormat = settings.Use24HourFormat;
-        ClockView.ShowSeconds = settings.ShowSeconds;
-        ClockView.ClockAlignment = settings.ClockAlignment;
-        ClockView.DimmingOpacity = settings.DimmingOpacity;
-        ClockView.ShowDismissHint = true;
-
-        // Apply Video settings
-        VideoView.LoopPlayback = settings.LoopPlayback;
-        VideoView.LoadVideo(settings.VideoPath, autoPlay: true);
-
-        // Reset views and animations
+        // 1. Reset views and animations
         _currentState = LockViewState.ClockScreen;
         _clockTranslateTransform.Y = 0;
         _videoBlurEffect.Radius = 0;
@@ -103,9 +95,22 @@ public partial class LockExperienceWindow : Window
         PinErrorText.Visibility = Visibility.Collapsed;
         PinInputBox.Password = "";
 
+        // 2. Configure Clock immediately (so it ticks on frame 1)
+        ClockView.Use24HourFormat = settings.Use24HourFormat;
+        ClockView.ShowSeconds = settings.ShowSeconds;
+        ClockView.ClockAlignment = settings.ClockAlignment;
+        ClockView.DimmingOpacity = settings.DimmingOpacity;
+        ClockView.ShowDismissHint = true;
+
+        // 3. DISPLAY WINDOW IMMEDIATELY! (Before video file I/O & decoder loading)
         Show();
         Activate();
         Focus();
+        StartupDiagnosticsTracker.RecordWindowFirstDisplayed();
+
+        // 4. Initialize Video Asynchronously without blocking the UI thread
+        VideoView.LoopPlayback = settings.LoopPlayback;
+        _ = VideoView.LoadVideoAsync(settings.VideoPath, autoPlay: true);
     }
 
     private void OnWindowKeyDown(object sender, KeyEventArgs e)

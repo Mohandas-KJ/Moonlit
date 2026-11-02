@@ -50,11 +50,13 @@ public partial class MainWindow : Window
             _feedbackTimer.Stop();
         };
 
+        StartupDiagnosticsTracker.RecordWindowCreated();
         Loaded += OnWindowLoaded;
     }
 
     private void OnWindowLoaded(object sender, RoutedEventArgs e)
     {
+        StartupDiagnosticsTracker.RecordWindowFirstDisplayed();
         LoadAndApplySettings();
         _isInitializing = false;
         RefreshStatus();
@@ -101,14 +103,14 @@ public partial class MainWindow : Window
 
         UpdateWinLStatusText();
 
-        // 4. Startup Registry Check
+        // 4. Startup Registration Check
         var isActuallyEnabled = _startupService.IsStartupEnabled();
         StartupCheckBox.IsChecked = isActuallyEnabled;
         _currentSettings.LaunchAtSignIn = isActuallyEnabled;
 
         if (isActuallyEnabled)
         {
-            StartupStatusHintText.Text = "Verified in Windows Startup registry.";
+            StartupStatusHintText.Text = "Verified in Windows Task Scheduler (At Log On, zero delay).";
             StartupStatusHintText.Foreground = (Brush)FindResource("ReadyBrush");
         }
         else
@@ -616,6 +618,7 @@ public partial class MainWindow : Window
             $"Startup at Sign-in:      {diag.IsStartupEnabled}\n" +
             $"Settings File:           {diag.SettingsPath}\n" +
             $"Logs Directory:          {diag.LogsPath}\n" +
+            $"\n{StartupDiagnosticsTracker.GetStartupTimingsSummary()}" +
             $"\nSummary:\n{diag.Summary}";
     }
 

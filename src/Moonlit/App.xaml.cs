@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
@@ -36,6 +37,16 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        try
+        {
+            var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+            StartupDiagnosticsTracker.RecordProcessStart(processStart);
+        }
+        catch
+        {
+            StartupDiagnosticsTracker.RecordProcessStart();
+        }
 
         // Global exception logging
         DispatcherUnhandledException += OnDispatcherUnhandledException;
@@ -121,6 +132,35 @@ public partial class App : Application
         // Keep app alive in background for lock session / hotkey monitoring
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+        // Immediate Window Launch (Priority 1):
+        // Reorganize startup so window becomes visible before deferred service initialization.
+        var sessionManager = LockSessionManager;
+        var settings = SettingsService.LoadSettings();
+
+        if (isLockMode)
+        {
+            // Immediate lock request via command-line shortcut
+            sessionManager.LaunchLockExperience(settings, lockOnDismiss: true);
+        }
+        else if (isBootMode)
+        {
+            // Present cinematic lock screen immediately upon logon if configured
+            if (settings.LockExperienceEnabled && settings.StartOnBootAsLockScreen && !string.IsNullOrWhiteSpace(settings.VideoPath))
+            {
+                SettingsService.LogMessage("Boot launch detected: Presenting initial cinematic lock screen experience (lockOnDismiss = true) immediately.");
+                sessionManager.LaunchLockExperience(settings, lockOnDismiss: true);
+            }
+            else
+            {
+                SettingsService.LogMessage("Boot launch detected: Running silently in background monitoring lock events.");
+            }
+        }
+        else
+        {
+            // Standard launch: open settings dashboard
+            ShowMainWindow();
+        }
+
         // Initialize IPC named event listeners for external lock & show requests
         _lockEventHandle = new EventWaitHandle(false, EventResetMode.AutoReset, LockEventName);
         _showWindowEventHandle = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
@@ -166,34 +206,19 @@ public partial class App : Application
         );
         _trayIconService.Initialize();
 
-        // Ensure LockSessionManager is instantiated to begin monitoring Win+L and session events
-        var sessionManager = LockSessionManager;
-        var settings = SettingsService.LoadSettings();
-
-        if (isLockMode)
+        // Safely migrate from legacy Registry Run to Task Scheduler in the background
+        Task.Run(() =>
         {
-            // Immediate lock request via command-line shortcut
-            sessionManager.LaunchLockExperience(settings, lockOnDismiss: true);
-        }
-        else if (isBootMode)
-        {
-            // Issue 5: When starting on boot, if configured, present the cinematic lock screen.
-            // Crucially, lockOnDismiss MUST be true so dismissing it transitions to Windows PIN/Password authentication
-            if (settings.LockExperienceEnabled && settings.StartOnBootAsLockScreen && !string.IsNullOrWhiteSpace(settings.VideoPath))
+            try
             {
-                SettingsService.LogMessage("Boot launch detected: Presenting initial cinematic lock screen experience (lockOnDismiss = true).");
-                sessionManager.LaunchLockExperience(settings, lockOnDismiss: true);
+                var startupService = new StartupService();
+                startupService.MigrateFromRegistryIfNeeded();
             }
-            else
+            catch (Exception ex)
             {
-                SettingsService.LogMessage("Boot launch detected: Running silently in background monitoring lock events.");
+                SettingsService.LogMessage($"Startup migration notice: {ex.Message}");
             }
-        }
-        else
-        {
-            // Standard launch: open settings dashboard
-            ShowMainWindow();
-        }
+        });
     }
 
     /// <summary>
