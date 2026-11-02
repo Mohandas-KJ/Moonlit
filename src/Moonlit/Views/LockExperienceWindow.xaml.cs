@@ -37,7 +37,6 @@ public partial class LockExperienceWindow : Window
         Radius = 0,
         RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance
     };
-    private readonly TranslateTransform _clockTranslateTransform = new();
 
     public LockExperienceWindow()
     {
@@ -52,9 +51,8 @@ public partial class LockExperienceWindow : Window
         Height = bounds.Height;
         WindowState = WindowState.Normal;
 
-        // Apply hardware-accelerated blur effect to VideoContainer and translation to ClockContainer
+        // Apply hardware-accelerated blur effect to VideoContainer
         VideoContainer.Effect = _videoBlurEffect;
-        ClockContainer.RenderTransform = _clockTranslateTransform;
 
         // User name display
         var currentUserName = Environment.UserName;
@@ -86,7 +84,7 @@ public partial class LockExperienceWindow : Window
 
         // 1. Reset views and animations
         _currentState = LockViewState.ClockScreen;
-        _clockTranslateTransform.Y = 0;
+        ClockView.ResetClockOffset();
         _videoBlurEffect.Radius = 0;
         PinEntryContainer.Visibility = Visibility.Collapsed;
         PinEntryContainer.Opacity = 0;
@@ -200,14 +198,12 @@ public partial class LockExperienceWindow : Window
         _currentState = LockViewState.PinScreen;
         ResetInactivityTimer();
 
-        // 1. Smoothly translate Clock UP
-        var clockUpAnimation = new DoubleAnimation
-        {
-            To = -140,
-            Duration = TimeSpan.FromMilliseconds(380),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-        _clockTranslateTransform.BeginAnimation(TranslateTransform.YProperty, clockUpAnimation);
+        // 1. Smoothly translate only the Clock & Date text UP (keeps dimming & vignette stationary full-screen)
+        ClockView.AnimateClockOffset(
+            targetY: -140,
+            duration: TimeSpan.FromMilliseconds(380),
+            easing: new CubicEase { EasingMode = EasingMode.EaseOut }
+        );
         ClockView.AnimateHintOpacity(0, TimeSpan.FromMilliseconds(200));
 
         // 2. Smoothly Blur the Video Background
@@ -284,13 +280,11 @@ public partial class LockExperienceWindow : Window
         PinTranslateTransform.BeginAnimation(TranslateTransform.YProperty, pinSlideDown);
 
         // 2. Smoothly translate Clock back DOWN
-        var clockDownAnimation = new DoubleAnimation
-        {
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(550),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-        };
-        _clockTranslateTransform.BeginAnimation(TranslateTransform.YProperty, clockDownAnimation);
+        ClockView.AnimateClockOffset(
+            targetY: 0,
+            duration: TimeSpan.FromMilliseconds(550),
+            easing: new CubicEase { EasingMode = EasingMode.EaseInOut }
+        );
         ClockView.AnimateHintOpacity(1, TimeSpan.FromMilliseconds(400));
 
         // 3. Smoothly Unblur the Video Background

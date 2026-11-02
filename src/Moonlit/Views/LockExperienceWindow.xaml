@@ -11,16 +11,14 @@
         Cursor="Arrow"
         Focusable="True">
 
-    <Grid Background="Black">
+    <Grid Background="Black" ClipToBounds="True">
         <!-- Layer 1: Cinematic Video Background with Dynamic Hardware Blur -->
-        <Grid x:Name="VideoContainer" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="VideoContainer" Margin="-15" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <views:VideoBackground x:Name="VideoView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
         </Grid>
 
-        <!-- Layer 2: Live Clock & Date Overlay with Vertical Smooth Translation -->
-        <Grid x:Name="ClockContainer" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <views:ClockOverlay x:Name="ClockView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        </Grid>
+        <!-- Layer 2: Live Clock & Date Overlay with Stationary Full-Screen Dimming & Vignette -->
+        <views:ClockOverlay x:Name="ClockView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
 
         <!-- Layer 3: Interactive Moonlit PIN Sign-in Container -->
         <Grid x:Name="PinEntryContainer"

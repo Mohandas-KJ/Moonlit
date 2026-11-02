@@ -28,6 +28,9 @@
               Margin="60"
               HorizontalAlignment="Center"
               VerticalAlignment="Center">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="ClockTextTranslateTransform" X="0" Y="0" />
+            </Grid.RenderTransform>
             <StackPanel x:Name="ClockStackPanel" HorizontalAlignment="Center">
                 
                 <!-- Time Row (Hours, Minutes, Seconds, AM/PM) -->

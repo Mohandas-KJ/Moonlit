@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace Moonlit.Views;
@@ -83,6 +84,30 @@ public partial class ClockOverlay : UserControl
     {
         var anim = new System.Windows.Media.Animation.DoubleAnimation(targetOpacity, duration);
         DismissHintBorder.BeginAnimation(UIElement.OpacityProperty, anim);
+    }
+
+    /// <summary>
+    /// Smoothly animates vertical translation of the clock and date text elements only,
+    /// keeping full-screen dimming and vignette layers stationary to prevent visual edge artifacts.
+    /// </summary>
+    public void AnimateClockOffset(double targetY, TimeSpan duration, System.Windows.Media.Animation.EasingFunctionBase? easing = null)
+    {
+        var anim = new System.Windows.Media.Animation.DoubleAnimation
+        {
+            To = targetY,
+            Duration = duration,
+            EasingFunction = easing
+        };
+        ClockTextTranslateTransform.BeginAnimation(TranslateTransform.YProperty, anim);
+    }
+
+    /// <summary>
+    /// Resets the clock and date vertical translation back to default immediately.
+    /// </summary>
+    public void ResetClockOffset()
+    {
+        ClockTextTranslateTransform.BeginAnimation(TranslateTransform.YProperty, null);
+        ClockTextTranslateTransform.Y = 0;
     }
 
     public void ApplyAlignment(string alignment)
