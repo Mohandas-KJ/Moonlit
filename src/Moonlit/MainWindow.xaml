@@ -75,7 +75,13 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="✨" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <Path Grid.Column="0"
+                              Width="18" Height="18"
+                              Margin="0,0,12,0"
+                              VerticalAlignment="Center"
+                              Fill="#FFFFFF"
+                              Stretch="Uniform"
+                              Data="F0 M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z M12,20 C7.59,20 4,16.41 4,12 C4,7.59 7.59,4 12,4 C16.41,4 20,7.59 20,12 C20,16.41 16.41,20 12,20 Z M11,7 L13,7 L13,9 L11,9 Z M11,11 L13,11 L13,17 L11,17 Z" />
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Personal Customization Notice" FontWeight="SemiBold" Foreground="#FAB005" FontSize="12" />
                             <TextBlock Text="Moonlit is crafted for users who want an awesome, aesthetic cinematic lock experience on their personal PC. It is not intended for enterprise, government, or high-security regulatory compliance environments."
