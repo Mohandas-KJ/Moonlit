@@ -12,6 +12,7 @@ public class AppSettingsTests
 
         Assert.Null(settings.VideoPath);
         Assert.True(settings.LoopPlayback);
+        Assert.False(settings.IsMuted);
         Assert.False(settings.LaunchAtSignIn);
         Assert.True(settings.LockExperienceEnabled);
         Assert.True(settings.InterceptWinL);
@@ -32,6 +33,7 @@ public class AppSettingsTests
         {
             VideoPath = @"C:\Media\Cinematic.mp4",
             LoopPlayback = false,
+            IsMuted = true,
             LaunchAtSignIn = true,
             LockExperienceEnabled = true,
             InterceptWinL = true,
@@ -51,6 +53,7 @@ public class AppSettingsTests
         Assert.NotSame(original, clone);
         Assert.Equal(original.VideoPath, clone.VideoPath);
         Assert.Equal(original.LoopPlayback, clone.LoopPlayback);
+        Assert.Equal(original.IsMuted, clone.IsMuted);
         Assert.Equal(original.LaunchAtSignIn, clone.LaunchAtSignIn);
         Assert.Equal(original.LockExperienceEnabled, clone.LockExperienceEnabled);
         Assert.Equal(original.InterceptWinL, clone.InterceptWinL);
@@ -72,6 +75,7 @@ public class AppSettingsTests
         {
             VideoPath = @"C:\Media\NightSky.mp4",
             LoopPlayback = true,
+            IsMuted = true,
             LaunchAtSignIn = false,
             LockExperienceEnabled = true,
             InterceptWinL = false,
@@ -90,6 +94,7 @@ public class AppSettingsTests
 
         Assert.NotNull(deserialized);
         Assert.Equal(original.VideoPath, deserialized.VideoPath);
+        Assert.True(deserialized.IsMuted);
         Assert.Equal(original.ClockAlignment, deserialized.ClockAlignment);
         Assert.Equal(original.DimmingOpacity, deserialized.DimmingOpacity);
         Assert.Equal(original.Use24HourFormat, deserialized.Use24HourFormat);

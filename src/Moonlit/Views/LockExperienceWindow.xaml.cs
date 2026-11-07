@@ -108,6 +108,7 @@ public partial class LockExperienceWindow : Window
 
         // 4. Initialize Video Asynchronously without blocking the UI thread
         VideoView.LoopPlayback = settings.LoopPlayback;
+        VideoView.IsMuted = settings.IsMuted;
         _ = VideoView.LoadVideoAsync(settings.VideoPath, autoPlay: true);
     }
 

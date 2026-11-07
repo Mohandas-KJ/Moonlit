@@ -22,6 +22,7 @@ Moonlit brings a customizable, cinematic lock-screen experience to Windows. Insp
 
 ### 🎬 Cinematic Video Background
 - **Native MP4 Playback**: Full-screen video rendering with aspect ratio preservation (`UniformToFill`).
+- **Mute Audio Option**: Toggleable setting to prevent video sound from playing during lock-screen presentation (silent atmosphere).
 - **Seamless Looping**: Automatic restart when playback reaches the end.
 - **Resource Efficient**: Low CPU and memory footprint with hardware-accelerated WPF media decoding.
 - **In-App Preview**: Integrated media player in settings with Play, Pause, and status feedback.

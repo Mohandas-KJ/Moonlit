@@ -20,6 +20,12 @@ public sealed class AppSettings
     public bool LoopPlayback { get; set; } = true;
 
     /// <summary>
+    /// Whether audio is muted during lock-screen video playback.
+    /// </summary>
+    [JsonPropertyName("isMuted")]
+    public bool IsMuted { get; set; } = false;
+
+    /// <summary>
     /// Whether the Moonlit application should launch automatically when Windows boots / user signs in.
     /// </summary>
     [JsonPropertyName("launchAtSignIn")]
@@ -101,6 +107,7 @@ public sealed class AppSettings
     {
         VideoPath = VideoPath,
         LoopPlayback = LoopPlayback,
+        IsMuted = IsMuted,
         LaunchAtSignIn = LaunchAtSignIn,
         StartOnBootAsLockScreen = StartOnBootAsLockScreen,
         LockExperienceEnabled = LockExperienceEnabled,

@@ -15,14 +15,34 @@ namespace Moonlit.Views;
 public partial class VideoBackground : UserControl
 {
     private string? _currentVideoPath;
+    private bool _isMuted;
 
     public bool LoopPlayback { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether audio playback is muted.
+    /// </summary>
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set
+        {
+            _isMuted = value;
+            ApplyMuteState();
+        }
+    }
 
     public event EventHandler<string>? PlaybackError;
 
     public VideoBackground()
     {
         InitializeComponent();
+    }
+
+    private void ApplyMuteState()
+    {
+        Player.IsMuted = _isMuted;
+        Player.Volume = _isMuted ? 0 : 1;
     }
 
     /// <summary>
@@ -52,6 +72,7 @@ public partial class VideoBackground : UserControl
         {
             Player.Opacity = 0;
             Player.Source = new Uri(videoPath, UriKind.Absolute);
+            ApplyMuteState();
             FallbackOverlay.Visibility = Visibility.Collapsed;
 
             if (autoPlay)
@@ -86,6 +107,7 @@ public partial class VideoBackground : UserControl
         {
             Player.Opacity = 0;
             Player.Source = new Uri(videoPath, UriKind.Absolute);
+            ApplyMuteState();
             FallbackOverlay.Visibility = Visibility.Collapsed;
 
             if (autoPlay)
@@ -104,6 +126,7 @@ public partial class VideoBackground : UserControl
 
     private void OnMediaOpened(object sender, RoutedEventArgs e)
     {
+        ApplyMuteState();
         StartupDiagnosticsTracker.RecordFirstVideoFrameDisplayed();
 
         // Smoothly fade in the video from the atmospheric startup canvas
@@ -145,6 +168,7 @@ public partial class VideoBackground : UserControl
     {
         if (LoopPlayback)
         {
+            ApplyMuteState();
             Player.Position = TimeSpan.Zero;
             Player.Play();
         }

@@ -100,6 +100,8 @@ public partial class MainWindow : Window
         StartOnBootCheckBox.IsChecked = _currentSettings.StartOnBootAsLockScreen;
         LockExperienceCheckBox.IsChecked = _currentSettings.LockExperienceEnabled;
         LoopCheckBox.IsChecked = _currentSettings.LoopPlayback;
+        MuteAudioCheckBox.IsChecked = _currentSettings.IsMuted;
+        PreviewPlayer.IsMuted = _currentSettings.IsMuted;
 
         UpdateWinLStatusText();
 
@@ -303,6 +305,7 @@ public partial class MainWindow : Window
             try
             {
                 PreviewPlayer.Source = new Uri(filePath, UriKind.Absolute);
+                PreviewPlayer.IsMuted = _currentSettings.IsMuted;
                 PreviewPlaceholder.Visibility = Visibility.Collapsed;
 
                 if (autoPlayPreview)
@@ -463,10 +466,16 @@ public partial class MainWindow : Window
         if (_isInitializing) return;
         _currentSettings.LockExperienceEnabled = LockExperienceCheckBox.IsChecked ?? true;
         _currentSettings.LoopPlayback = LoopCheckBox.IsChecked ?? true;
+        _currentSettings.IsMuted = MuteAudioCheckBox.IsChecked ?? false;
         _currentSettings.InterceptWinL = InterceptWinLCheckBox.IsChecked ?? true;
         _currentSettings.JumpToPasswordPrompt = JumpToPasswordPromptCheckBox.IsChecked ?? true;
         _currentSettings.StartOnBootAsLockScreen = StartOnBootCheckBox.IsChecked ?? true;
         _currentSettings.UseMoonlitPinScreen = MoonlitPinScreenCheckBox.IsChecked ?? true;
+
+        if (PreviewPlayer != null)
+        {
+            PreviewPlayer.IsMuted = _currentSettings.IsMuted;
+        }
 
         _lockSessionManager.UpdateSettings(_currentSettings);
         RefreshStatus();
@@ -533,6 +542,7 @@ public partial class MainWindow : Window
     {
         _currentSettings.VideoPath = SelectedFilePathText.Text != "No video selected" ? SelectedFilePathText.Text : null;
         _currentSettings.LoopPlayback = LoopCheckBox.IsChecked ?? true;
+        _currentSettings.IsMuted = MuteAudioCheckBox.IsChecked ?? false;
         _currentSettings.LockExperienceEnabled = LockExperienceCheckBox.IsChecked ?? true;
         _currentSettings.InterceptWinL = InterceptWinLCheckBox.IsChecked ?? true;
         _currentSettings.JumpToPasswordPrompt = JumpToPasswordPromptCheckBox.IsChecked ?? true;
@@ -615,6 +625,7 @@ public partial class MainWindow : Window
             $"Win+L Registry Policy:   {(diag.IsWinLPolicyActive ? "Configured (Active)" : "Not Set (Elevated setup required)")}\n" +
             $"NoLockScreen Policy:     {(diag.IsNoLockScreenPolicyActive ? "Configured (Curtain bypassed)" : "Not Set")}\n" +
             $"Jump to Password Prompt: {_currentSettings.JumpToPasswordPrompt}\n" +
+            $"Mute Lock Screen Audio: {_currentSettings.IsMuted}\n" +
             $"Startup at Sign-in:      {diag.IsStartupEnabled}\n" +
             $"Settings File:           {diag.SettingsPath}\n" +
             $"Logs Directory:          {diag.LogsPath}\n" +

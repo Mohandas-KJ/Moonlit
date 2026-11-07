@@ -443,7 +443,7 @@
                         <Separator Background="{StaticResource CardBorderBrush}" Margin="0,4,10,10" />
 
                         <!-- Preference 6: Loop Video Continuously -->
-                        <Grid Margin="0,0,0,4">
+                        <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -453,6 +453,21 @@
                                 <TextBlock Text="Seamlessly restarts the video when it reaches the end." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
                             </StackPanel>
                             <CheckBox Grid.Column="1" x:Name="LoopCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="True" Checked="OnPreferenceChanged" Unchecked="OnPreferenceChanged" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Separator Background="{StaticResource CardBorderBrush}" Margin="0,4,10,10" />
+
+                        <!-- Preference 7: Mute Audio -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Mute Audio on Lock Screen" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="Medium" FontSize="13" />
+                                <TextBlock Text="Prevents video audio from playing when Win + L or Moonlit Lock Screen appears." Style="{StaticResource BodyTextStyle}" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" x:Name="MuteAudioCheckBox" Style="{StaticResource ModernCheckBoxStyle}" IsChecked="False" Checked="OnPreferenceChanged" Unchecked="OnPreferenceChanged" VerticalAlignment="Center" />
                         </Grid>
                     </StackPanel>
                 </Border>
