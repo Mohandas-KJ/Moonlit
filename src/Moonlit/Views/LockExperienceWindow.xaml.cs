@@ -26,7 +26,6 @@ public partial class LockExperienceWindow : Window
         Unlocking
     }
 
-    private Point? _initialMousePosition;
     private bool _isDismissing;
     private bool _lockOnDismiss;
     private bool _jumpToPasswordPrompt = true;
@@ -172,32 +171,9 @@ public partial class LockExperienceWindow : Window
 
     private void OnWindowMouseMove(object sender, MouseEventArgs e)
     {
-        var currentPosition = e.GetPosition(this);
-        if (_initialMousePosition == null)
-        {
-            _initialMousePosition = currentPosition;
-            return;
-        }
-
-        if (_currentState == LockViewState.ClockScreen)
-        {
-            var deltaX = Math.Abs(currentPosition.X - _initialMousePosition.Value.X);
-            var deltaY = Math.Abs(currentPosition.Y - _initialMousePosition.Value.Y);
-
-            if (deltaX > 40 || deltaY > 40)
-            {
-                _initialMousePosition = currentPosition;
-                if (_useMoonlitPinScreen)
-                {
-                    TransitionToPinScreen();
-                }
-                else
-                {
-                    DismissExperience();
-                }
-            }
-        }
-        else if (_currentState == LockViewState.PinScreen)
+        // Mouse pointer can move freely across the screen without rising the curtain on ClockScreen.
+        // Only an explicit mouse button press (MouseDown) or key press (KeyDown) will rise the curtain.
+        if (_currentState == LockViewState.PinScreen)
         {
             ResetInactivityTimer();
         }
