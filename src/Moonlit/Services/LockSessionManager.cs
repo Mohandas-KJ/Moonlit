@@ -161,7 +161,7 @@ public sealed class LockSessionManager : IDisposable
         {
             try
             {
-                _activeLockWindow.Close();
+                _activeLockWindow.AuthorizeAndClose();
             }
             catch
             {

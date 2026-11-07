@@ -1,5 +1,8 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -29,9 +32,11 @@ public partial class LockExperienceWindow : Window
     private bool _jumpToPasswordPrompt = true;
     private bool _useMoonlitPinScreen = true;
     private string _configuredPin = "1080";
+    private bool _isAuthorizedClose;
 
     private LockViewState _currentState = LockViewState.ClockScreen;
     private readonly DispatcherTimer _inactivityTimer;
+    private readonly DispatcherTimer _focusGuardTimer;
     private readonly System.Windows.Media.Effects.BlurEffect _videoBlurEffect = new()
     {
         Radius = 0,
@@ -65,10 +70,19 @@ public partial class LockExperienceWindow : Window
         };
         _inactivityTimer.Tick += OnInactivityTimerTick;
 
-        // Interaction listeners for clock wakeup and activity tracking
+        // Focus Guard Timer: Detects Task View / Virtual Desktop switcher theft and restores lock screen
+        _focusGuardTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(200)
+        };
+        _focusGuardTimer.Tick += OnFocusGuardTimerTick;
+        _focusGuardTimer.Start();
+
+        // Interaction listeners for clock wakeup, gestures, and activity tracking
         KeyDown += OnWindowKeyDown;
         MouseDown += OnWindowMouseDown;
         MouseMove += OnWindowMouseMove;
+        Deactivated += OnWindowDeactivated;
     }
 
     /// <summary>
@@ -368,11 +382,13 @@ public partial class LockExperienceWindow : Window
     {
         _currentState = LockViewState.Unlocking;
         _inactivityTimer.Stop();
+        _focusGuardTimer.Stop();
 
         // Smooth fade out to reveal the desktop
         var unlockFade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(220));
         unlockFade.Completed += (_, _) =>
         {
+            _isAuthorizedClose = true;
             StopAndMutePlayback();
             Close();
         };
@@ -427,11 +443,24 @@ public partial class LockExperienceWindow : Window
         }
     }
 
+    /// <summary>
+    /// Programmatically closes the lock experience window with authorization.
+    /// </summary>
+    public void AuthorizeAndClose()
+    {
+        _isAuthorizedClose = true;
+        _focusGuardTimer.Stop();
+        _inactivityTimer.Stop();
+        StopAndMutePlayback();
+        Close();
+    }
+
     private void DismissExperience()
     {
         if (_isDismissing) return;
         _isDismissing = true;
         _inactivityTimer.Stop();
+        _focusGuardTimer.Stop();
 
         // 1. Stop video playback and release media resources immediately to prevent audio bleed
         StopAndMutePlayback();
@@ -450,13 +479,177 @@ public partial class LockExperienceWindow : Window
             }
         }
 
+        _isAuthorizedClose = true;
         Close();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        // Prevent unauthorized close (such as user clicking [X] in Task View or sending WM_CLOSE)
+        if (!_isAuthorizedClose)
+        {
+            e.Cancel = true;
+            DismissTaskViewAndShellOverlays();
+            Topmost = false;
+            Topmost = true;
+            Activate();
+            Focus();
+            return;
+        }
+
+        _focusGuardTimer.Stop();
+        _inactivityTimer.Stop();
+        base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)
     {
         _inactivityTimer.Stop();
+        _focusGuardTimer.Stop();
         StopAndMutePlayback();
         base.OnClosed(e);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e)
+    {
+        if (_currentState != LockViewState.Unlocking && !_isAuthorizedClose)
+        {
+            // If Task View or an external window attempts to steal activation,
+            // immediately dismiss the shell switcher and regain foreground focus.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_currentState != LockViewState.Unlocking && !_isAuthorizedClose)
+                {
+                    DismissTaskViewAndShellOverlays();
+                    Topmost = false;
+                    Topmost = true;
+                    Activate();
+                    Focus();
+
+                    var helper = new WindowInteropHelper(this);
+                    if (helper.Handle != IntPtr.Zero)
+                    {
+                        SetForegroundWindow(helper.Handle);
+                        BringWindowToTop(helper.Handle);
+                    }
+                }
+            }), DispatcherPriority.Send);
+        }
+    }
+
+    private void OnFocusGuardTimerTick(object? sender, EventArgs e)
+    {
+        if (_currentState == LockViewState.Unlocking || _isAuthorizedClose) return;
+
+        var helper = new WindowInteropHelper(this);
+        if (helper.Handle == IntPtr.Zero) return;
+
+        var fgWindow = GetForegroundWindow();
+        if (fgWindow != helper.Handle && fgWindow != IntPtr.Zero)
+        {
+            DismissTaskViewAndShellOverlays();
+            Topmost = false;
+            Topmost = true;
+            Activate();
+            Focus();
+            SetForegroundWindow(helper.Handle);
+            BringWindowToTop(helper.Handle);
+        }
+    }
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WS_EX_APPWINDOW = 0x00040000;
+
+    private const uint SC_CLOSE = 0xF060;
+    private const uint MF_BYCOMMAND = 0x00000000;
+    private const uint MF_GRAYED = 0x00000001;
+    private const uint MF_DISABLED = 0x00000002;
+
+    private const int VK_ESCAPE = 0x1B;
+    private const uint KEYEVENTF_KEYUP = 0x0002;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            // 1. Mark as WS_EX_TOOLWINDOW: completely hides Moonlit from Task View and Alt+Tab switchers
+            var exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(hwnd, GWL_EXSTYLE, (exStyle | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW);
+
+            // 2. Disable system menu close item
+            var hMenu = GetSystemMenu(hwnd, false);
+            if (hMenu != IntPtr.Zero)
+            {
+                EnableMenuItem(hMenu, SC_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
+            }
+
+            // 3. Attach Win32 WndProc message hook to swallow WM_CLOSE and SC_CLOSE
+            var source = HwndSource.FromHwnd(hwnd);
+            source?.AddHook(WndProc);
+        }
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_CLOSE = 0x0010;
+        const int WM_SYSCOMMAND = 0x0112;
+
+        if (!_isAuthorizedClose)
+        {
+            if (msg == WM_CLOSE)
+            {
+                handled = true;
+                Activate();
+                Focus();
+                return IntPtr.Zero;
+            }
+
+            if (msg == WM_SYSCOMMAND && (wParam.ToInt32() & 0xFFF0) == SC_CLOSE)
+            {
+                handled = true;
+                Activate();
+                Focus();
+                return IntPtr.Zero;
+            }
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static void DismissTaskViewAndShellOverlays()
+    {
+        try
+        {
+            keybd_event((byte)VK_ESCAPE, 0, 0, UIntPtr.Zero);
+            keybd_event((byte)VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+        catch { }
     }
 }

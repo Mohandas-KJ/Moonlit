@@ -87,12 +87,30 @@ public sealed class KeyboardHookService : IDisposable
 
             if (IsKioskLockActive)
             {
-                // Suppress keys that attempt to switch away or close the lock screen without PIN
-                if (vkCode == VK_TAB && altDown) return (IntPtr)1; // Alt + Tab
-                if (vkCode == VK_ESCAPE && (altDown || ctrlDown)) return (IntPtr)1; // Alt + Esc or Ctrl + Esc
-                if (vkCode == VK_F4 && altDown) return (IntPtr)1; // Alt + F4
-                if (vkCode == VK_SPACE && altDown) return (IntPtr)1; // Alt + Space
-                if (vkCode == VK_LWIN || vkCode == VK_RWIN) return (IntPtr)1; // Win key
+                // Suppress keys that attempt to switch away or close the lock screen without PIN:
+                // 1. Any Windows key press or combination (Win+Tab for Task View, Win+D for Show Desktop, Win+Left/Right for Desktops, etc.)
+                if (winDown || vkCode == VK_LWIN || vkCode == VK_RWIN)
+                {
+                    return (IntPtr)1;
+                }
+
+                // 2. Alt combinations: Alt+Tab, Alt+Esc, Alt+F4, Alt+Space
+                if (altDown && (vkCode == VK_TAB || vkCode == VK_ESCAPE || vkCode == VK_F4 || vkCode == VK_SPACE))
+                {
+                    return (IntPtr)1;
+                }
+
+                // 3. Ctrl combinations: Ctrl+Esc (Start), Ctrl+Shift+Esc (Task Manager), Ctrl+Tab
+                if (ctrlDown && (vkCode == VK_ESCAPE || vkCode == VK_TAB))
+                {
+                    return (IntPtr)1;
+                }
+
+                // 4. Any Tab navigation while modifiers are held
+                if (vkCode == VK_TAB && (altDown || winDown || ctrlDown))
+                {
+                    return (IntPtr)1;
+                }
             }
 
             if (vkCode == VK_L)
